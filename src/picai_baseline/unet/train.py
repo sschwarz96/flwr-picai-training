@@ -29,6 +29,9 @@ from picai_baseline.unet.training_setup.loss_functions.focal import FocalLoss
 from picai_baseline.unet.training_setup.neural_network_selector import \
     neural_network_for_run
 from torch.utils.tensorboard import SummaryWriter
+import csv
+
+import src.picai_baseline.flwr.PicaiClient
 
 
 def main():
@@ -38,47 +41,47 @@ def main():
     # data I/0 + experimental setup
     parser.add_argument('--max_threads', type=int, default=12,
                         help="Max threads/workers for data loaders")
-    parser.add_argument('--validate_n_epochs', type=int, default=10,               
+    parser.add_argument('--validate_n_epochs', type=int, default=10,
                         help="Trigger validation every N epochs")
-    parser.add_argument('--validate_min_epoch', type=int, default=50,               
+    parser.add_argument('--validate_min_epoch', type=int, default=50,
                         help="Trigger validation after minimum N epochs")
-    parser.add_argument('--export_best_model', type=int, default=1,                
+    parser.add_argument('--export_best_model', type=int, default=1,
                         help="Export model checkpoints")
-    parser.add_argument('--resume_training', type=str, default=1,                
+    parser.add_argument('--resume_training', type=str, default=1,
                         help="Resume training model, if checkpoint exists")
-    parser.add_argument('--weights_dir', type=str, required=True,            
+    parser.add_argument('--weights_dir', type=str, required=True,
                         help="Path to export model checkpoints")
-    parser.add_argument('--overviews_dir', type=str, required=True,            
+    parser.add_argument('--overviews_dir', type=str, required=True,
                         help="Base path to training/validation data sheets")
-    parser.add_argument('--folds', type=int, nargs='+', required=True, 
+    parser.add_argument('--folds', type=int, nargs='+', required=True,
                         help="Folds selected for training/validation run")
 
     # training hyperparameters
-    parser.add_argument('--image_shape', type=int, nargs="+", default=[20, 256, 256],   
+    parser.add_argument('--image_shape', type=int, nargs="+", default=[20, 256, 256],
                         help="Input image shape (z, y, x)")
-    parser.add_argument('--num_channels', type=int, default=3,                
+    parser.add_argument('--num_channels', type=int, default=3,
                         help="Number of input channels/sequences")
-    parser.add_argument('--num_classes', type=int, default=2,                
+    parser.add_argument('--num_classes', type=int, default=2,
                         help="Number of classes at train-time")
-    parser.add_argument('--num_epochs', type=int, default=100,              
+    parser.add_argument('--num_epochs', type=int, default=100,
                         help="Number of training epochs")
-    parser.add_argument('--base_lr', type=float, default=0.001,            
+    parser.add_argument('--base_lr', type=float, default=0.001,
                         help="Learning rate")
-    parser.add_argument('--focal_loss_gamma', type=float, default=1.0,              
+    parser.add_argument('--focal_loss_gamma', type=float, default=1.0,
                         help="Focal Loss gamma value")
-    parser.add_argument('--enable_da', type=int, default=1,                
+    parser.add_argument('--enable_da', type=int, default=1,
                         help="Enable data augmentation")
 
     # neural network-specific hyperparameters
-    parser.add_argument('--model_type', type=str, default='unet',                                                    
+    parser.add_argument('--model_type', type=str, default='unet',
                         help="Neural network: architectures")
-    parser.add_argument('--model_strides', type=str, default='[(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]', 
+    parser.add_argument('--model_strides', type=str, default='[(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]',
                         help="Neural network: convolutional strides (as string representation)")
-    parser.add_argument('--model_features', type=str, default='[32, 64, 128, 256, 512, 1024]',                           
+    parser.add_argument('--model_features', type=str, default='[32, 64, 128, 256, 512, 1024]',
                         help="Neural network: number of encoder channels (as string representation)")
-    parser.add_argument('--batch_size', type=int, default=8,                                                         
+    parser.add_argument('--batch_size', type=int, default=8,
                         help="Mini-batch size")
-    parser.add_argument('--use_def_model_hp', type=int, default=1,                                                         
+    parser.add_argument('--use_def_model_hp', type=int, default=1,
                         help="Use default set of model-specific hyperparameters")
 
     args = parser.parse_args()
@@ -104,7 +107,7 @@ def main():
             num_threads=args.num_threads,
             disable=(not bool(args.enable_da))
         )
-        
+
         # initialize multi-threaded augmenter in background
         train_gen.restart()
 
@@ -123,7 +126,6 @@ def main():
             model=model, optimizer=optimizer,
             device=device, args=args, fold_id=f
         )
-
         # for each epoch
         for epoch in range(tracking_metrics['start_epoch'], args.num_epochs):
 
@@ -138,8 +140,7 @@ def main():
 
             # ----------------------------------------------------------------------------------------------------------------------
             # for each round of validation
-            if ((epoch+1) % args.validate_n_epochs == 0) and ((epoch+1) >= args.validate_min_epoch):
-
+            if ((epoch + 1) % args.validate_n_epochs == 0) and ((epoch + 1) >= args.validate_min_epoch):
                 # validate model per N epochs + export model weights
                 model.eval()
                 with torch.no_grad():  # no gradient updates during validation
@@ -147,12 +148,33 @@ def main():
                     model, optimizer, valid_gen, tracking_metrics, writer = validate_model(
                         model=model, optimizer=optimizer, valid_gen=valid_gen, args=args,
                         tracking_metrics=tracking_metrics, device=device, writer=writer
-                    )
 
+                    )
         # --------------------------------------------------------------------------------------------------------------------------
         print(
             f"Training Complete! Peak Validation Ranking Score: {tracking_metrics['best_metric']:.4f} "
             f"@ Epoch: {tracking_metrics['best_metric_epoch']}")
+        with open(
+                f"/home/zimon/picai_baseline/workdir/results/UNet/metrics/training_metrics{tracking_metrics['fold_id']}.csv",
+                "w", newline="") as file:
+            csv_writer = csv.writer(file)
+
+            # Write header
+            csv_writer.writerow(["epoch", "fold_id", "train_loss", "val_auroc", "val_ap", "val_ranking", "best_metric",
+                                 "best_metric_epoch"])
+
+            # Write metrics for each epoch
+            for i, epoch in enumerate(tracking_metrics["all_epochs"]):
+                csv_writer.writerow([
+                    epoch,
+                    tracking_metrics["fold_id"],
+                    tracking_metrics["all_train_loss"][i],
+                    tracking_metrics["all_valid_metrics_auroc"][i],
+                    tracking_metrics["all_valid_metrics_ap"][i],
+                    tracking_metrics["all_valid_metrics_ranking"][i],
+                    tracking_metrics["best_metric"],
+                    tracking_metrics["best_metric_epoch"]
+                ])
         writer.close()
         # --------------------------------------------------------------------------------------------------------------------------
 
