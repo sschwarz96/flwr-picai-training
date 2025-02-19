@@ -4,11 +4,13 @@ import json
 from datetime import datetime
 from logging import INFO
 from pathlib import Path
+from typing import Optional, Union
 
 import torch
 
-from flwr.common import logger, parameters_to_ndarrays
-from flwr.common.typing import UserConfig
+from flwr.common import logger, parameters_to_ndarrays, EvaluateRes
+from flwr.common.typing import UserConfig, FitRes, Parameters, Scalar
+from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedAvg
 
 from src.picai_baseline.flwr.federated_training_methods import set_parameters
@@ -33,9 +35,10 @@ class CustomFedAvg(FedAvg):
         self.save_path, self.run_dir = create_run_dir(run_config)
         # Keep track of best acc
         self.best_ranking_so_far = 0.0
-
         # A dictionary to store results as they come
         self.results = {}
+        # Store latest params
+        self.params = None
 
     def _store_results(self, tag: str, results_dict):
         """Store results in dictionary, then save as JSON."""
@@ -52,7 +55,7 @@ class CustomFedAvg(FedAvg):
         with open(f"{self.save_path}/results.json", "w", encoding="utf-8") as fp:
             json.dump(self.results, fp)
 
-    def _update_best_ranking(self, round, ranking, parameters):
+    def _update_best_ranking(self, round, ranking):
         """Determines if a new best global model has been found.
 
         If so, the model checkpoint is saved to disk.
@@ -64,11 +67,11 @@ class CustomFedAvg(FedAvg):
             # Instead we are going to apply them to a PyTorch
             # model and save the state dict.
             # Converts flwr.common.Parameters to ndarrays
-            ndarrays = parameters_to_ndarrays(parameters)
+            ndarrays = parameters_to_ndarrays(self.params)
             model = neural_network_for_run(args=run_configuration)
             set_parameters(model, ndarrays)
             # Save the PyTorch model
-            file_name = f"model_state_acc_{ranking}_round_{round}.pth"
+            file_name = f"model_state_rank_{ranking}_round_{round}.pth"
             torch.save(model.state_dict(), self.save_path / file_name)
 
     def store_results_and_log(self, server_round: int, tag: str, results_dict):
@@ -79,26 +82,27 @@ class CustomFedAvg(FedAvg):
             results_dict={"round": server_round, **results_dict},
         )
 
-    # def evaluate(self, server_round, parameters):
-    #     """Run centralized evaluation if callback was passed to strategy init."""
-    #     if super().evaluate_fn is None:
-    #         return None
-    #     loss, metrics = super().evaluate(server_round, parameters)
-    #
-    #     # Save model if new best central accuracy is found
-    #     self._update_best_ranking(server_round, metrics["ranking"], parameters)
-    #
-    #     # Store and log
-    #     self.store_results_and_log(
-    #         server_round=server_round,
-    #         tag="centralized_evaluate",
-    #         results_dict={"centralized_loss": loss, **metrics},
-    #     )
-    #     return loss, metrics
+    def aggregate_fit(
+            self,
+            server_round: int,
+            results: list[tuple[ClientProxy, FitRes]],
+            failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
+    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        """Aggregate model weights using weighted average and store checkpoint"""
 
-    def aggregate_evaluate(self, server_round, results, failures):
+        # Call aggregate_fit from base class (FedAvg) to aggregate parameters and metrics
+        aggregated_parameters, aggregated_metrics = super().aggregate_fit(
+            server_round, results, failures
+        )
+        self.params = aggregated_parameters
+
+        return aggregated_parameters, aggregated_metrics
+
+    def aggregate_evaluate(self, server_round, results: list[tuple[ClientProxy, EvaluateRes]], failures):
         """Aggregate results from federated evaluation."""
         loss, metrics = super().aggregate_evaluate(server_round, results, failures)
+        print(f"METRICS: {metrics}")
+        self._update_best_ranking(server_round, metrics["ranking"])
 
         # Store and log
         self.store_results_and_log(

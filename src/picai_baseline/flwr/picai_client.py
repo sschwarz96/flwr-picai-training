@@ -4,7 +4,6 @@ import torch
 import torch.cuda
 from flwr.client import NumPyClient, Client
 from flwr.common import Context
-from torch.utils.tensorboard import SummaryWriter
 
 from src.picai_baseline.flwr.federated_training_methods import load_datasets, set_parameters, \
     get_parameters, train, test
@@ -83,16 +82,7 @@ def client_fn(context: Context) -> Client:
     loss_func = FocalLoss(alpha=class_weights[-1], gamma=args.focal_loss_gamma).to(device)
     optimizer = torch.optim.Adam(params=net.parameters(), lr=args.base_lr, amsgrad=True)
 
-    writer = SummaryWriter()
-
-    # model, optimizer, tracking_metrics = resume_or_restart_training(
-    #     model=net, optimizer=optimizer,
-    #     device=device, args=args, fold_id=partition_id
-    # )
-
     # Create a single Flower client representing a single organization
     # FlowerClient is a subclass of NumPyClient, so we need to call .to_client()
     # to convert it to a subclass of `flwr.client.Client`
     return PicaiFlowerCLient(net, train_gen, valloader, optimizer, loss_func, args, device, partition_id).to_client()
-
-

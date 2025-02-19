@@ -1,11 +1,13 @@
 import glob
 import os
 from collections import OrderedDict
+from logging import INFO
+from pathlib import Path
 from typing import List
 
 import numpy as np
 import torch
-from flwr.common import ndarrays_to_parameters, Parameters
+from flwr.common import ndarrays_to_parameters, Parameters, log
 from torch import nn
 
 from src.picai_baseline.flwr.run_config import run_configuration
@@ -52,9 +54,10 @@ def test(model, optimizer, loss_func, valid_gen, arguments, device):
 
 
 def load_model_checkpoint(net: nn.Module) -> Parameters:
-    list_of_files = [fname for fname in glob.glob("./model_state_acc_*")]
+    outputs = Path("./outputs")
+    list_of_files = [fname for fname in outputs.rglob("*.pth")]
     latest_round_file = max(list_of_files, key=os.path.getctime)
-    print("Loading pre-trained model from: ", latest_round_file)
+    log(INFO, "Loading pre-trained model from: ", latest_round_file)
     state_dict = torch.load(latest_round_file)
     net.load_state_dict(state_dict)
     state_dict_ndarrays = [v.cpu().numpy() for v in net.state_dict().values()]

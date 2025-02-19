@@ -1,10 +1,13 @@
+from logging import INFO
 from symbol import parameters
 
-from flwr.common import Context, Metrics
+import torch
+from batchgenerators.dataloading.data_loader import DataLoader
+from flwr.common import Context, Metrics, log
 from flwr.server import ServerAppComponents, ServerConfig
 
 from src.picai_baseline.flwr.custom_strategy import CustomFedAvg
-from src.picai_baseline.flwr.federated_training_methods import load_model_checkpoint
+from src.picai_baseline.flwr.federated_training_methods import load_model_checkpoint, set_parameters, test
 from src.picai_baseline.flwr.run_config import run_configuration
 from src.picai_baseline.unet.training_setup.neural_network_selector import neural_network_for_run
 
@@ -18,6 +21,7 @@ def fit_config(server_round: int):
     }
     return config
 
+
 def evaluate_config(server_round: int):
     """Generate evaluation configuration for each round."""
     # Create the configuration dictionary
@@ -26,7 +30,6 @@ def evaluate_config(server_round: int):
         "local_epochs": run_configuration.validate_n_epochs,
     }
     return config
-
 
 
 def weighted_average(metrics: list[tuple[int, Metrics]]) -> Metrics:
@@ -58,7 +61,7 @@ def server_fn(context: Context) -> ServerAppComponents:
     if run_configuration.resume_training:
         init_parameters = load_model_checkpoint(neural_network_for_run(args=run_configuration))
         strategy = CustomFedAvg(
-            run_config=context.run_config,
+            run_config=run_configuration.to_dict(),
             initial_parameters=init_parameters,
             fraction_fit=1.0,  # Sample 100% of available clients for training
             fraction_evaluate=0.5,  # Sample 50% of available clients for evaluation
@@ -71,7 +74,7 @@ def server_fn(context: Context) -> ServerAppComponents:
         )
     else:
         strategy = CustomFedAvg(
-            run_config=context.run_config,
+            run_config=run_configuration.to_dict(),
             fraction_fit=1.0,  # Sample 100% of available clients for training
             fraction_evaluate=0.5,  # Sample 50% of available clients for evaluation
             min_fit_clients=1,  # Never sample less than 10 clients for training
@@ -86,5 +89,3 @@ def server_fn(context: Context) -> ServerAppComponents:
     config = ServerConfig(num_rounds=run_configuration.num_rounds)
 
     return ServerAppComponents(strategy=strategy, config=config)
-
-
