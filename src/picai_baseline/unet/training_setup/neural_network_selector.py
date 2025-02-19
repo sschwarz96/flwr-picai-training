@@ -11,11 +11,12 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+from __future__ import annotations
 
 from picai_baseline.unet.training_setup.neural_networks.unets import UNet
+import torch
 
-
-def neural_network_for_run(args, device):
+def neural_network_for_run(args, device: torch.device | None = None):
     """Select neural network architecture for given run"""
 
     if args.model_type == 'unet':
@@ -28,7 +29,7 @@ def neural_network_for_run(args, device):
         )
     else:
         raise ValueError(f"Unknown model type: {args.model_type}")
-
-    model = model.to(device)
+    if device:
+        model = model.to(device)
     print("Loaded Neural Network Arch.:", args.model_type)
     return model

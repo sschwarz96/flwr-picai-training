@@ -31,7 +31,8 @@ from picai_baseline.unet.training_setup.neural_network_selector import \
 from torch.utils.tensorboard import SummaryWriter
 import csv
 
-import src.picai_baseline.flwr.PicaiClient
+import src.picai_baseline.flwr.federated_training_methods
+import src.picai_baseline.flwr.picai_client
 
 
 def main():
@@ -127,10 +128,10 @@ def main():
             device=device, args=args, fold_id=f
         )
         # for each epoch
-        for epoch in range(tracking_metrics['start_epoch'], args.num_epochs):
+        for epoch in range(tracking_metrics['start_epoch'], args.num_train_epochs):
 
             # optimize model x N training steps + update learning rate
-            model.train()
+            src.picai_baseline.flwr.federated_training_methods.train()
             tracking_metrics['epoch'] = epoch
 
             model, optimizer, train_gen, tracking_metrics, writer = optimize_model(

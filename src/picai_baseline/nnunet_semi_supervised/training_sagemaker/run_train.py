@@ -2,7 +2,7 @@ from sagemaker.local import LocalSession
 from sagemaker.pytorch import PyTorch
 
 sagemaker_session = LocalSession()
-sagemaker_session.config = {'local': {'local_code': True}}
+sagemaker_session.run_configuration = {'local': {'local_code': True}}
 
 # To run SageMaker locally, you need a role that has access to AWS SageMaker and S3.
 # You can call this role `SageMakerRole` (as below), or you can change the role name below.

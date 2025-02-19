@@ -12,7 +12,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import os
 import time
 from pathlib import Path
 
@@ -133,7 +132,7 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
             break
 
     # update learning rate
-    updated_lr = poly_lr(epoch + 1, args.num_epochs, args.base_lr, 0.95)
+    updated_lr = poly_lr(epoch + 1, args.num_train_epochs, args.base_lr, 0.95)
     optimizer.param_groups[0]['lr'] = updated_lr
     print("Learning Rate Updated! New Value: " + str(np.round(updated_lr, 10)), flush=True)
 
@@ -142,7 +141,7 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
     # tracking_metrics['train_loss'] = train_loss
     # writer.add_scalar("train_loss", train_loss, epoch + 1)
     print("-" * 100)
-    print(f"Epoch {epoch + 1}/{args.num_epochs} (Train. Loss: {train_loss:.4f}; \
+    print(f"Epoch {epoch + 1}/{args.num_train_epochs} (Train. Loss: {train_loss:.4f}; \
         Time: {int(time.time() - start_time)}sec; Steps Completed: {step})", flush=True)
 
     return model, optimizer, train_gen, train_loss

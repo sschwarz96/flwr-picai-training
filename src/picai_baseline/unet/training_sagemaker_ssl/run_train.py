@@ -2,7 +2,7 @@ from sagemaker.local import LocalSession
 from sagemaker.pytorch import PyTorch
 
 sagemaker_session = LocalSession()
-sagemaker_session.config = {'local': {'local_code': True}}
+sagemaker_session.run_configuration = {'local': {'local_code': True}}
 
 # Configure PyTorch (no training happens yet)
 pytorch_estimator = PyTorch(
