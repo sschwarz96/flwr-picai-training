@@ -7,7 +7,7 @@ from flwr.simulation import run_simulation
 
 import torch
 
-NUM_CLIENTS = 2
+NUM_CLIENTS = 5
 
 from src.picai_baseline.flwr.federated_training_methods import server_fn, client_fn
 
@@ -16,7 +16,7 @@ backend_config = {"client_resources": {"num_cpus": 1, "num_gpus": 0.0}}
 
 # When running on GPU, assign an entire GPU for each client
 if DEVICE == "cuda":
-    backend_config = {"client_resources": {"num_cpus": 1, "num_gpus": 3.0}}
+    backend_config = {"client_resources": {"num_cpus": 2, "num_gpus": 0.5}}
     # Refer to our Flower framework documentation for more details about Flower simulations
     # and how to set up the `backend_config`
 

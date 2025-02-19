@@ -54,15 +54,15 @@ def resume_or_restart_training(model, optimizer, device, args, fold_id):
             all_valid_metrics_ranking = (saved_metrics['valid_ranking'].values).tolist()
 
             tracking_metrics = {
-                'fold_id':                   fold_id,
-                'start_epoch':               checkpoint['epoch'] + 1,  # resume at next epoch
-                'all_epochs':                all_epochs,
-                'all_train_loss':           (saved_metrics['train_loss'].values).tolist(),
-                'all_valid_metrics_auroc':   all_valid_metrics_auroc,
-                'all_valid_metrics_ap':      all_valid_metrics_ap,
+                'fold_id': fold_id,
+                'start_epoch': checkpoint['epoch'] + 1,  # resume at next epoch
+                'all_epochs': all_epochs,
+                'all_train_loss': (saved_metrics['train_loss'].values).tolist(),
+                'all_valid_metrics_auroc': all_valid_metrics_auroc,
+                'all_valid_metrics_ap': all_valid_metrics_ap,
                 'all_valid_metrics_ranking': all_valid_metrics_ranking,
-                'best_metric':               np.max(all_valid_metrics_ranking),
-                'best_metric_epoch':         all_epochs[all_valid_metrics_ranking.index(
+                'best_metric': np.max(all_valid_metrics_ranking),
+                'best_metric_epoch': all_epochs[all_valid_metrics_ranking.index(
                     np.max(all_valid_metrics_ranking))]}
 
             print('Previous Record of Metrics Loaded:', metrics_file)
@@ -70,42 +70,42 @@ def resume_or_restart_training(model, optimizer, device, args, fold_id):
             print('Previous Record of Metrics Not Found:', metrics_file)
 
             tracking_metrics = {
-                'fold_id':                    fold_id,
-                'start_epoch':                checkpoint['epoch'],
-                'all_epochs':                 [],
-                'all_train_loss':             [],
-                'all_valid_metrics_auroc':    [],
-                'all_valid_metrics_ap':       [],
-                'all_valid_metrics_ranking':  [],
+                'fold_id': fold_id,
+                'start_epoch': checkpoint['epoch'],
+                'all_epochs': [],
+                'all_train_loss': [],
+                'all_valid_metrics_auroc': [],
+                'all_valid_metrics_ap': [],
+                'all_valid_metrics_ranking': [],
                 'best_metric': -1,
                 'best_metric_epoch': -1}
 
-        print("Resume Training: Epoch",  tracking_metrics['start_epoch']+1)
+        print("Resume Training: Epoch", tracking_metrics['start_epoch'] + 1)
         print("Best Validation Metric:", tracking_metrics['best_metric'],
               "@ Epoch", tracking_metrics['best_metric_epoch'])
     else:
         tracking_metrics = {
-            'fold_id':                    fold_id,
-            'start_epoch':                0,
-            'all_epochs':                 [],
-            'all_train_loss':             [],
-            'all_valid_metrics_auroc':    [],
-            'all_valid_metrics_ap':       [],
-            'all_valid_metrics_ranking':  [],
+            'fold_id': fold_id,
+            'start_epoch': 0,
+            'all_epochs': [],
+            'all_train_loss': [],
+            'all_valid_metrics_auroc': [],
+            'all_valid_metrics_ap': [],
+            'all_valid_metrics_ranking': [],
             'best_metric': -1,
             'best_metric_epoch': -1}
 
-        print("Start Training: Epoch", tracking_metrics['start_epoch']+1)
+        print("Start Training: Epoch", tracking_metrics['start_epoch'] + 1)
 
     return model, optimizer, tracking_metrics
 
 
-def optimize_model(model, optimizer, loss_func, train_gen, args, tracking_metrics, device, writer):
+def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
     """Optimize model x N training steps per epoch + update learning rate"""
 
-    train_loss, step = 0,  0
+    train_loss, step = 0, 0
     start_time = time.time()
-    epoch = tracking_metrics['epoch']
+    # epoch = tracking_metrics['epoch']
 
     # for each mini-batch or optimization step
     for batch_data in train_gen:
@@ -113,17 +113,11 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, tracking_metric
         try:
             inputs = batch_data['data'].to(device)
             labels = batch_data['seg'].to(device)
-        except Exception:
+        except Exception as e:
             inputs = torch.from_numpy(batch_data['data']).to(device)
             labels = torch.from_numpy(batch_data['seg']).to(device)
 
-        # bugfix for shape of targets
-        if labels.shape[1] == 1:
-            # labels now has shape (B, 1, D, H, W)
-            labels = labels[:, 0, ...]  # shape: (B, D, H, W)
-            labels = F.one_hot(labels.long(), num_classes=args.num_classes).float()  # shape: (B, D, H, W, C)
-            # reshape to (B, C, D, H, W)
-            labels = labels.permute(0, 4, 1, 2, 3).contiguous()
+        labels = fix_labels_shape(args, labels)
 
         outputs = model(inputs)
         loss = loss_func(outputs, labels)
@@ -139,47 +133,68 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, tracking_metric
             break
 
     # update learning rate
-    updated_lr = poly_lr(epoch+1, args.num_epochs, args.base_lr, 0.95)
+    updated_lr = poly_lr(epoch + 1, args.num_epochs, args.base_lr, 0.95)
     optimizer.param_groups[0]['lr'] = updated_lr
-    print("Learning Rate Updated! New Value: "+str(np.round(updated_lr, 10)), flush=True)
+    print("Learning Rate Updated! New Value: " + str(np.round(updated_lr, 10)), flush=True)
 
     # track training metrics
     train_loss /= step
-    tracking_metrics['train_loss'] = train_loss
-    writer.add_scalar("train_loss", train_loss, epoch+1)
+    # tracking_metrics['train_loss'] = train_loss
+    # writer.add_scalar("train_loss", train_loss, epoch + 1)
     print("-" * 100)
     print(f"Epoch {epoch + 1}/{args.num_epochs} (Train. Loss: {train_loss:.4f}; \
-        Time: {int(time.time()-start_time)}sec; Steps Completed: {step})", flush=True)
+        Time: {int(time.time() - start_time)}sec; Steps Completed: {step})", flush=True)
 
-    return model, optimizer, train_gen, tracking_metrics, writer
+    return model, optimizer, train_gen, train_loss
 
 
-def validate_model(model, optimizer, valid_gen, args, tracking_metrics, device, writer):
+def fix_labels_shape(args, labels):
+    # bugfix for shape of targets
+    if labels.shape[1] == 1:
+        # labels now has shape (B, 1, D, H, W)
+        labels = labels[:, 0, ...]  # shape: (B, D, H, W)
+        labels = F.one_hot(labels.long(), num_classes=args.num_classes).float()  # shape: (B, D, H, W, C)
+        # reshape to (B, C, D, H, W)
+        labels = labels.permute(0, 4, 1, 2, 3).contiguous()
+    return labels
+
+
+def validate_model(model, optimizer, loss_func, valid_gen, args, device):
     """Validate model per N epoch + export model weights"""
 
-    epoch, f = tracking_metrics['epoch'], tracking_metrics['fold_id']
+    # epoch, f = tracking_metrics['epoch'], tracking_metrics['fold_id']
 
     # for each validation sample
     lesion_results = []
+    total_loss = 0.0  # Track loss
+    step = 0
     for valid_data in valid_gen:
 
         try:
             valid_images = valid_data['data'].to(device)
             valid_labels = valid_data['seg']
+            valid_labels_device = valid_data['seg'].to(device)
         except Exception:
             valid_images = torch.from_numpy(valid_data['data']).to(device)
+            valid_labels_device = torch.from_numpy(valid_data['seg']).to(device)
             valid_labels = valid_data['seg']
 
+        # bugfix for shape of targets
+        valid_labels_device = fix_labels_shape(args, valid_labels_device)
+
+        # Calculate validation loss
+        outputs = model(valid_images)
+        batch_loss = loss_func(outputs, valid_labels_device).item()
+        total_loss += batch_loss
+        step += 1
+
         # test-time augmentation
-        valid_images = [valid_images, torch.flip(valid_images, [4]).to(device)]
+        valid_images_tta = [valid_images, torch.flip(valid_images, [4]).to(device)]
 
         # aggregate all validation predictions
         # gaussian blur to counteract checkerboard artifacts in
         # predictions from the use of transposed conv. in the U-Net
-        preds = [
-            torch.sigmoid(model(x))[:, 1, ...].detach().cpu().numpy()
-            for x in valid_images
-        ]
+        preds = [torch.sigmoid(model(x))[:, 1, ...].detach().cpu().numpy() for x in valid_images_tta]
 
         # revert horizontally flipped tta image
         preds[1] = np.flip(preds[1], [3])
@@ -190,10 +205,10 @@ def validate_model(model, optimizer, valid_gen, args, tracking_metrics, device, 
             gaussian_filter(x, sigma=1.5)
             for x in preds
         ], axis=0)
-    
+
         # extract lesion candidates
         preds = [
-            extract_lesion_candidates(x)[0] 
+            extract_lesion_candidates(x)[0]
             for x in preds
         ]
 
@@ -207,6 +222,7 @@ def validate_model(model, optimizer, valid_gen, args, tracking_metrics, device, 
             # aggregate all validation evaluations
             lesion_results.append(y_list)
 
+    avg_loss = total_loss / step
     # track validation metrics
     lesion_results = {idx: result for idx, result in enumerate(lesion_results)}
     valid_metrics = Metrics(lesion_results)
@@ -214,45 +230,52 @@ def validate_model(model, optimizer, valid_gen, args, tracking_metrics, device, 
     num_pos = sum([y == 1 for y in valid_metrics.case_target.values()])
     num_neg = sum([y == 0 for y in valid_metrics.case_target.values()])
 
-    tracking_metrics['all_epochs'].append(epoch+1)
-    tracking_metrics['all_train_loss'].append(tracking_metrics['train_loss'])
-    tracking_metrics['all_valid_metrics_auroc'].append(valid_metrics.auroc)
-    tracking_metrics['all_valid_metrics_ap'].append(valid_metrics.AP)
-    tracking_metrics['all_valid_metrics_ranking'].append(valid_metrics.score)
+    # tracking_metrics['all_epochs'].append(epoch+1)
+    # tracking_metrics['all_train_loss'].append(tracking_metrics['train_loss'])
+    # tracking_metrics['all_valid_metrics_auroc'].append(valid_metrics.auroc)
+    # tracking_metrics['all_valid_metrics_ap'].append(valid_metrics.AP)
+    # tracking_metrics['all_valid_metrics_ranking'].append(valid_metrics.score)
 
-    # export train-time + validation metrics as .xlsx sheet
-    metricsData = pd.DataFrame(list(zip(tracking_metrics['all_epochs'],
-                                        tracking_metrics['all_train_loss'],
-                                        tracking_metrics['all_valid_metrics_auroc'],
-                                        tracking_metrics['all_valid_metrics_ap'],
-                                        tracking_metrics['all_valid_metrics_ranking'])),
-                               columns=['epoch', 'train_loss', 'valid_auroc', 'valid_ap', 'valid_ranking'])
+    # # export train-time + validation metrics as .xlsx sheet
+    # metricsData = pd.DataFrame(list(zip(tracking_metrics['all_epochs'],
+    #                                     tracking_metrics['all_train_loss'],
+    #                                     tracking_metrics['all_valid_metrics_auroc'],
+    #                                     tracking_metrics['all_valid_metrics_ap'],
+    #                                     tracking_metrics['all_valid_metrics_ranking'])),
+    #                            columns=['epoch', 'train_loss', 'valid_auroc', 'valid_ap', 'valid_ranking'])
 
     # create target folder and save exports sheet
-    os.makedirs(args.weights_dir, exist_ok=True)
+    # os.makedirs(args.weights_dir, exist_ok=True)
+    #
+    # metrics_file = Path(args.weights_dir) / f"{args.model_type}_F{partition_id}_metrics.xlsx"
+    # metricsData.to_excel(metrics_file, index=False)
 
-    metrics_file = Path(args.weights_dir) / f"{args.model_type}_F{f}_metrics.xlsx"
-    metricsData.to_excel(metrics_file, index=False)
-
-    writer.add_scalar("valid_auroc",   valid_metrics.auroc, epoch+1)
-    writer.add_scalar("valid_ap",      valid_metrics.AP,    epoch+1)
-    writer.add_scalar("valid_ranking", valid_metrics.score, epoch+1)
+    # writer.add_scalar("valid_auroc", valid_metrics.auroc, epoch + 1)
+    # writer.add_scalar("valid_ap", valid_metrics.AP, epoch + 1)
+    # writer.add_scalar("valid_ranking", valid_metrics.score, epoch + 1)
 
     print(f"Valid. Performance [Benign or Indolent PCa (n={num_neg}) \
         vs. csPCa (n={num_pos})]:\nRanking Score = {valid_metrics.score:.3f},\
         AP = {valid_metrics.AP:.3f}, AUROC = {valid_metrics.auroc:.3f}", flush=True)
 
     # store model checkpoint if validation metric improves
-    if valid_metrics.score > tracking_metrics['best_metric']:
-        tracking_metrics['best_metric'] = valid_metrics.score
-        tracking_metrics['best_metric_epoch'] = epoch + 1
-        if bool(args.export_best_model):
-            weights_file = Path(args.weights_dir) / f"{args.model_type}_F{f}.pt"
+    # if valid_metrics.score > tracking_metrics['best_metric']:
+    #     tracking_metrics['best_metric'] = valid_metrics.score
+    #     tracking_metrics['best_metric_epoch'] = epoch + 1
+    #     if bool(args.export_best_model):
+    #         weights_file = Path(args.weights_dir) / f"{args.model_type}_F{f}.pt"
+    #
+    #         print("Validation Ranking Score Improved! Saving New Best Model", flush=True)
+    #         torch.save({
+    #             'epoch': epoch,
+    #             'model_state_dict': model.state_dict(),
+    #             'optimizer_state_dict': optimizer.state_dict()
+    #         }, weights_file)
 
-            print("Validation Ranking Score Improved! Saving New Best Model", flush=True)
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict()
-            }, weights_file)
-    return model, optimizer, valid_gen, tracking_metrics, writer
+    tracking_metrics = {
+        "average_precision": valid_metrics.AP,
+        "auroc": valid_metrics.auroc,
+        "ranking": valid_metrics.score,
+        "loss": avg_loss  # Include loss
+    }
+    return model, optimizer, valid_gen, tracking_metrics

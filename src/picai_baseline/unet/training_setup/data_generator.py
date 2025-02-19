@@ -60,6 +60,9 @@ class DataLoaderFromDataset(DataLoader):
         self.collate_fn = collate_fn
         self.indices = np.arange(len(data))
 
+    def get_data_length(self) -> int:
+        return len(self._data)
+
     def generate_train_batch(self):
 
         # randomly select N samples (N = batch size)
