@@ -4,34 +4,37 @@ import json
 class RunConfig:
     def __init__(self):
         # Data I/O + Experimental Setup
-        self.max_threads = 6
         self.validate_n_epochs = 1
-        self.validate_min_epoch = 0
-        self.export_best_model = 1
-        self.resume_training = 1
-        self.weights_dir = "/home/zimon/picai_baseline/workdir/results/UNet/weights"
+        self.resume_training = 0
         self.overviews_dir = "/home/zimon/picai_baseline/workdir/results/UNet/overviews/Task2203_picai_baseline"
-        self.folds = [0, 1, 2, 3, 4]
 
         # Training Hyperparameters
         self.image_shape = [20, 256, 256]  # (z, y, x)
         self.num_channels = 3
         self.num_classes = 2
-        self.num_train_epochs = 1
         self.base_lr = 0.001
         self.focal_loss_gamma = 1.0
         self.enable_da = 1  # Data Augmentation
+        self.random_seed = 42  # For reproducibility
 
         # Neural Network-Specific Hyperparameters
         self.model_type = "unet"
         self.model_strides = [(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]
         self.model_features = [32, 64, 128, 256, 512, 1024]
-        self.batch_size = 4
+        self.batch_size = 8
         self.use_def_model_hp = 1
 
         # Federated Learning Config
+        self.num_train_epochs = 10
+        self.central_evaluation = True
         self.num_clients = 3
-        self.num_rounds = 5
+        self.num_rounds = 20
+        self.num_gpus = 1.0
+        self.num_threads = 4
+        self.fraction_fit = 1.0
+        self.evaluate_fit = 0.0 if self.central_evaluation else 1.0
+        self.folds = [0, 1, 2, 3] if self.central_evaluation else [0, 1, 2, 3, 4]
+        self.evaluation_fold = 4 if self.central_evaluation else None
 
     def to_dict(self):
         """Convert the class attributes to a dictionary for JSON serialization."""
@@ -59,4 +62,6 @@ class RunConfig:
 
 
 # Create an instance
+
+
 run_configuration = RunConfig()

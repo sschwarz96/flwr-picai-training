@@ -13,7 +13,7 @@
 #  limitations under the License.
 from __future__ import annotations
 
-from picai_baseline.unet.training_setup.neural_networks.unets import UNet
+from src.picai_baseline.unet.training_setup.neural_networks.unets import UNet
 import torch
 
 def neural_network_for_run(args, device: torch.device | None = None):

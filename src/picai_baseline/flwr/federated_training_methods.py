@@ -53,11 +53,12 @@ def test(model, optimizer, loss_func, valid_gen, arguments, device):
     return tracking_metrics
 
 
+
 def load_model_checkpoint(net: nn.Module) -> Parameters:
     outputs = Path("./outputs")
     list_of_files = [fname for fname in outputs.rglob("*.pth")]
     latest_round_file = max(list_of_files, key=os.path.getctime)
-    log(INFO, "Loading pre-trained model from: ", latest_round_file)
+    log(INFO, f"Loading pre-trained model from: {latest_round_file}")
     state_dict = torch.load(latest_round_file)
     net.load_state_dict(state_dict)
     state_dict_ndarrays = [v.cpu().numpy() for v in net.state_dict().values()]

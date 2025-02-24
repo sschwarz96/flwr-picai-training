@@ -16,17 +16,17 @@ import argparse
 import ast
 
 import torch
-from picai_baseline.unet.training_setup.augmentations.nnUNet_DA import \
+from src.picai_baseline.unet.training_setup.augmentations.nnUNet_DA import \
     apply_augmentations
-from picai_baseline.unet.training_setup.callbacks import (
-    optimize_model, resume_or_restart_training, validate_model)
-from picai_baseline.unet.training_setup.compute_spec import \
+from src.picai_baseline.unet.training_setup.callbacks import (
+    optimize_model, validate_model)
+from src.picai_baseline.unet.training_setup.compute_spec import \
     compute_spec_for_run
-from picai_baseline.unet.training_setup.data_generator import prepare_datagens
-from picai_baseline.unet.training_setup.default_hyperparam import \
+from src.picai_baseline.unet.training_setup.data_generator import prepare_datagens
+from src.picai_baseline.unet.training_setup.default_hyperparam import \
     get_default_hyperparams
-from picai_baseline.unet.training_setup.loss_functions.focal import FocalLoss
-from picai_baseline.unet.training_setup.neural_network_selector import \
+from src.picai_baseline.unet.training_setup.loss_functions.focal import FocalLoss
+from src.picai_baseline.unet.training_setup.neural_network_selector import \
     neural_network_for_run
 from torch.utils.tensorboard import SummaryWriter
 import csv
@@ -105,7 +105,7 @@ def main():
         # integrate data augmentation pipeline from nnU-Net
         train_gen = apply_augmentations(
             dataloader=train_gen,
-            num_threads=args.num_threads,
+            num_threads=args.num_threads - 1,
             disable=(not bool(args.enable_da))
         )
 

@@ -82,6 +82,22 @@ class CustomFedAvg(FedAvg):
             results_dict={"round": server_round, **results_dict},
         )
 
+    def evaluate(
+            self, server_round: int, parameters: Parameters
+    ) -> Optional[tuple[float, dict[str, Scalar]]]:
+
+        if server_round == 0 and not run_configuration.resume_training:
+            return None
+        loss, metrics = super().evaluate(server_round=server_round, parameters=parameters)
+        self._update_best_ranking(server_round, metrics["ranking"])
+
+        self.store_results_and_log(
+            server_round=server_round,
+            tag="central_evaluate",
+            results_dict={"central_evaluate_loss": loss, **metrics},
+        )
+        return loss, metrics
+
     def aggregate_fit(
             self,
             server_round: int,
@@ -101,7 +117,6 @@ class CustomFedAvg(FedAvg):
     def aggregate_evaluate(self, server_round, results: list[tuple[ClientProxy, EvaluateRes]], failures):
         """Aggregate results from federated evaluation."""
         loss, metrics = super().aggregate_evaluate(server_round, results, failures)
-        print(f"METRICS: {metrics}")
         self._update_best_ranking(server_round, metrics["ranking"])
 
         # Store and log

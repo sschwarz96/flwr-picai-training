@@ -1,3 +1,4 @@
+import random
 from random import randint
 
 import torch
@@ -54,10 +55,12 @@ def client_fn(context: Context) -> Client:
     # will train and evaluate on their own unique data partition
     # Read the node_config to fetch data partition associated to this node
     partition_id = context.node_config["partition-id"]
+    print(f"Partition id {partition_id}")
 
-    random_number = randint(0, run_configuration.num_clients)
+    random.seed(run_configuration.random_seed)
+    random_number = randint(0, len(run_configuration.folds))
 
-    fold_id = (partition_id + random_number) % run_configuration.num_clients
+    fold_id = (partition_id + random_number) % len(run_configuration.folds)
 
     # Call compute_spec_for_run with assigned GPU
     device, args = compute_spec_for_run(args=run_configuration)
@@ -68,7 +71,7 @@ def client_fn(context: Context) -> Client:
 
     train_gen = apply_augmentations(
         dataloader=trainloader,
-        num_threads=args.max_threads,
+        num_threads=args.num_threads,
         disable=(not bool(args.enable_da))
     )
 

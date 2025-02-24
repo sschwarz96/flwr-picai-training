@@ -24,7 +24,7 @@ from picai_eval.eval import evaluate_case
 from report_guided_annotation import extract_lesion_candidates
 from scipy.ndimage import gaussian_filter
 
-from picai_baseline.unet.training_setup.poly_lr import poly_lr
+from src.picai_baseline.unet.training_setup.poly_lr import poly_lr
 
 
 def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
@@ -157,47 +157,9 @@ def validate_model(model, optimizer, loss_func, valid_gen, args, device):
     num_pos = sum([y == 1 for y in valid_metrics.case_target.values()])
     num_neg = sum([y == 0 for y in valid_metrics.case_target.values()])
 
-    # tracking_metrics['all_epochs'].append(epoch+1)
-    # tracking_metrics['all_train_loss'].append(tracking_metrics['train_loss'])
-    # tracking_metrics['all_valid_metrics_auroc'].append(valid_metrics.auroc)
-    # tracking_metrics['all_valid_metrics_ap'].append(valid_metrics.AP)
-    # tracking_metrics['all_valid_metrics_ranking'].append(valid_metrics.score)
-
-    # # export train-time + validation metrics as .xlsx sheet
-    # metricsData = pd.DataFrame(list(zip(tracking_metrics['all_epochs'],
-    #                                     tracking_metrics['all_train_loss'],
-    #                                     tracking_metrics['all_valid_metrics_auroc'],
-    #                                     tracking_metrics['all_valid_metrics_ap'],
-    #                                     tracking_metrics['all_valid_metrics_ranking'])),
-    #                            columns=['epoch', 'train_loss', 'valid_auroc', 'valid_ap', 'valid_ranking'])
-
-    # create target folder and save exports sheet
-    # os.makedirs(args.weights_dir, exist_ok=True)
-    #
-    # metrics_file = Path(args.weights_dir) / f"{args.model_type}_F{partition_id}_metrics.xlsx"
-    # metricsData.to_excel(metrics_file, index=False)
-
-    # writer.add_scalar("valid_auroc", valid_metrics.auroc, epoch + 1)
-    # writer.add_scalar("valid_ap", valid_metrics.AP, epoch + 1)
-    # writer.add_scalar("valid_ranking", valid_metrics.score, epoch + 1)
-
     print(f"Valid. Performance [Benign or Indolent PCa (n={num_neg}) \
         vs. csPCa (n={num_pos})]:\nRanking Score = {valid_metrics.score:.3f},\
         AP = {valid_metrics.AP:.3f}, AUROC = {valid_metrics.auroc:.3f}", flush=True)
-
-    # store model checkpoint if validation metric improves
-    # if valid_metrics.score > tracking_metrics['best_metric']:
-    #     tracking_metrics['best_metric'] = valid_metrics.score
-    #     tracking_metrics['best_metric_epoch'] = epoch + 1
-    #     if bool(args.export_best_model):
-    #         weights_file = Path(args.weights_dir) / f"{args.model_type}_F{f}.pt"
-    #
-    #         print("Validation Ranking Score Improved! Saving New Best Model", flush=True)
-    #         torch.save({
-    #             'epoch': epoch,
-    #             'model_state_dict': model.state_dict(),
-    #             'optimizer_state_dict': optimizer.state_dict()
-    #         }, weights_file)
 
     tracking_metrics = {
         "average_precision": valid_metrics.AP,

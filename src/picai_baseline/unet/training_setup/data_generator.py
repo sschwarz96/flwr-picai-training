@@ -22,7 +22,7 @@ import torch
 from batchgenerators.dataloading.data_loader import DataLoader
 from monai.transforms import Compose, EnsureType
 
-from picai_baseline.unet.training_setup.image_reader import SimpleITKDataset
+from src.picai_baseline.unet.training_setup.image_reader import SimpleITKDataset
 
 
 def default_collate(batch):
@@ -64,7 +64,6 @@ class DataLoaderFromDataset(DataLoader):
         return len(self._data)
 
     def generate_train_batch(self):
-
         # randomly select N samples (N = batch size)
         indices = self.get_indices()
 
@@ -89,12 +88,12 @@ def prepare_datagens(args, fold_id):
     valid_data = [np.array(valid_json['image_paths']), np.array(valid_json['label_paths'])]
 
     # use case-level class balance to deduce required train-time class weights
-    class_ratio_t = [int(np.sum(train_json['case_label'])), int(len(train_data[0])-np.sum(train_json['case_label']))]
-    class_ratio_v = [int(np.sum(valid_json['case_label'])), int(len(valid_data[0])-np.sum(valid_json['case_label']))]
+    class_ratio_t = [int(np.sum(train_json['case_label'])), int(len(train_data[0]) - np.sum(train_json['case_label']))]
+    class_ratio_v = [int(np.sum(valid_json['case_label'])), int(len(valid_data[0]) - np.sum(valid_json['case_label']))]
     class_weights = (class_ratio_t / np.sum(class_ratio_t))
 
     # log dataset definition
-    print('Dataset Definition:', "-"*80)
+    print('Dataset Definition:', "-" * 80)
     print(f'Fold Number: {fold_id}')
     print('Data Classes:', list(np.unique(train_json['case_label'])))
     print(f'Train-Time Class Weights: {class_weights}')
@@ -103,15 +102,15 @@ def prepare_datagens(args, fold_id):
 
     # dummy dataloader for sanity check
     pretx = [EnsureType()]
-    check_ds = SimpleITKDataset(image_files=train_data[0][:args.batch_size*2],
-                                seg_files=train_data[1][:args.batch_size*2],
+    check_ds = SimpleITKDataset(image_files=train_data[0][:args.batch_size * 2],
+                                seg_files=train_data[1][:args.batch_size * 2],
                                 transform=Compose(pretx),
                                 seg_transform=Compose(pretx))
-    check_loader = DataLoaderFromDataset(check_ds, batch_size=args.batch_size, num_threads=args.num_threads)
+    check_loader = DataLoaderFromDataset(check_ds, batch_size=args.batch_size, num_threads=args.num_threads - 1)
     data_pair = monai.utils.misc.first(check_loader)
     print('DataLoader - Image Shape: ', data_pair['data'].shape)
     print('DataLoader - Label Shape: ', data_pair['seg'].shape)
-    print("-"*100)
+    print("-" * 100)
 
     assert args.image_shape == list(data_pair['data'].shape[2:])
     assert args.num_channels == data_pair['data'].shape[1]
@@ -119,12 +118,14 @@ def prepare_datagens(args, fold_id):
 
     # actual dataloaders used at train-time
     train_ds = SimpleITKDataset(image_files=train_data[0], seg_files=train_data[1],
-                                transform=Compose(pretx),  seg_transform=Compose(pretx))
+                                transform=Compose(pretx), seg_transform=Compose(pretx))
     valid_ds = SimpleITKDataset(image_files=valid_data[0], seg_files=valid_data[1],
-                                transform=Compose(pretx),  seg_transform=Compose(pretx))
-    train_ldr = DataLoaderFromDataset(train_ds, 
-        batch_size=args.batch_size, num_threads=args.num_threads, infinite=True, shuffle=True)
-    valid_ldr = DataLoaderFromDataset(valid_ds, 
-        batch_size=args.batch_size, num_threads=args.num_threads, infinite=False, shuffle=False)
+                                transform=Compose(pretx), seg_transform=Compose(pretx))
+    train_ldr = DataLoaderFromDataset(train_ds,
+                                      batch_size=args.batch_size, num_threads=args.num_threads - 1, infinite=True,
+                                      shuffle=True)
+    valid_ldr = DataLoaderFromDataset(valid_ds,
+                                      batch_size=args.batch_size, num_threads=args.num_threads - 1, infinite=False,
+                                      shuffle=False)
 
     return train_ldr, valid_ldr, class_weights.astype(np.float32)
