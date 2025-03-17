@@ -1,3 +1,19 @@
+# This file is part of the PiCAI Baseline U-Net (Apache 2.0 License)
+# Modified by Simon Schwarz on 17.3.25
+# Changes: Integrated to work with Codebase using FLWR
+
+#
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
 import json
 from pathlib import Path
 
@@ -7,11 +23,8 @@ import torch
 from evalutils import SegmentationAlgorithm
 from evalutils.validators import (UniqueImagesValidator,
                                   UniquePathIndicesValidator)
+from src.picai_baseline.flwr.run_config import RunConfig
 
-from src.picai_baseline.flwr.federated_training_methods import load_model_checkpoint
-from src.picai_baseline.flwr.run_config import run_configuration, RunConfig
-from src.picai_baseline.unet.training_setup.default_hyperparam import \
-    get_default_hyperparams
 from src.picai_baseline.unet.training_setup.neural_network_selector import \
     neural_network_for_run
 from src.picai_baseline.unet.training_setup.preprocess_utils import z_score_norm
@@ -19,6 +32,12 @@ from picai_prep.data_utils import atomic_image_write
 from picai_prep.preprocessing import Sample, PreprocessingSettings, crop_or_pad, resample_img
 from report_guided_annotation import extract_lesion_candidates
 from scipy.ndimage import gaussian_filter
+
+WEIGHTS_FILE = Path(
+    "/home/zimon/flwr-picai-training/src/picai_baseline/flwr/outputs/2025-02-23/15-31-47/model_state_rank_0.6518681856663044_round_20.pth")
+PATIENT_ID = "10032"
+PATIENT = Path(f"/home/zimon/flwr-picai-training/input/images/{PATIENT_ID}")
+
 
 
 class csPCaAlgorithm(SegmentationAlgorithm):
@@ -63,9 +82,9 @@ class csPCaAlgorithm(SegmentationAlgorithm):
 
         # path to output files
         self.detection_map_output_path = Path(
-            "/home/zimon/flwr-picai-training/workdir/output/images/cspca-detection-map/cspca_detection_map.mha")
+            f"/home/zimon/flwr-picai-training/workdir/output/images/cspca-detection-map/cspca_detection_map_{PATIENT_ID}.mha")
         self.case_level_likelihood_output_file = Path(
-            "/home/zimon/flwr-picai-training/workdir/output/cspca-case-level-likelihood.json")
+            f"/home/zimon/flwr-picai-training/workdir/output/cspca-case-level-likelihood_{PATIENT_ID}.json")
 
         # create output directory
         self.detection_map_output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -107,31 +126,18 @@ class csPCaAlgorithm(SegmentationAlgorithm):
             'num_classes': 2,
         }
 
-        # load trained algorithm architecture + weights
-        self.models = []
-        model_arch = ['unet']
-        model_folds = [range(5)]
-
         run_configuration = RunConfig()
-        # init_parameters = load_model_checkpoint(neural_network_for_run(args=run_configuration))
 
         model = neural_network_for_run(args=run_configuration, device=self.device)
 
-        # load trained weights for the fold
+        # load trained weights
         checkpoint = torch.load(self.weights_path)
         print(f"Loading weights from {self.weights_path}")
         model.load_state_dict(checkpoint)
         model.to(self.device)
-        self.models += [model]
+        self.model = model
         print("Complete.")
         print("-" * 100)
-
-        # display error/success message
-        if len(self.models) == 0:
-            raise Exception("No models have been found/initialized.")
-        else:
-            print(f"Success! {len(self.models)} model(s) have been initialized.")
-            print("-" * 100)
 
     # generate + save predictions, given images
     def predict(self):
@@ -179,30 +185,29 @@ class csPCaAlgorithm(SegmentationAlgorithm):
         outputs = []
         print("Generating Predictions ...")
 
-        # for each member model in ensemble
-        for p in range(len(self.models)):
-            # switch model to evaluation mode
-            self.models[p].eval()
+        # switch model to evaluation mode
+        self.model.eval()
 
-            # scope to disable gradient updates
-            with torch.no_grad():
-                # aggregate predictions for all tta samples
-                preds = [
-                    torch.sigmoid(self.models[p](x))[:, 1, ...].detach().cpu().numpy()
-                    for x in img_for_pred
-                ]
+        # scope to disable gradient updates
+        with torch.no_grad():
+            # aggregate predictions for all tta samples
+            test_ouput = self.model(img_for_pred[0])
+            preds = [
+                torch.sigmoid(self.model(x))[:, 1, ...].detach().cpu().numpy()
+                for x in img_for_pred
+            ]
 
-                # revert horizontally flipped tta image
-                preds[1] = np.flip(preds[1], [3])
+            # revert horizontally flipped tta image
+            preds[1] = np.flip(preds[1], [3])
 
-                # gaussian blur to counteract checkerboard artifacts in
-                # predictions from the use of transposed conv. in the U-Net
-                outputs += [
-                    np.mean([
-                        gaussian_filter(x, sigma=1.5)
-                        for x in preds
-                    ], axis=0)[0]
-                ]
+            # gaussian blur to counteract checkerboard artifacts in
+            # predictions from the use of transposed conv. in the U-Net
+            outputs += [
+                np.mean([
+                    gaussian_filter(x, sigma=1.5)
+                    for x in preds
+                ], axis=0)[0]
+            ]
 
         # ensemble softmax predictions
         ensemble_output = np.mean(outputs, axis=0).astype('float32')
@@ -251,7 +256,6 @@ class csPCaAlgorithm(SegmentationAlgorithm):
 
 if __name__ == "__main__":
     (csPCaAlgorithm(
-        Path(
-            "/home/zimon/flwr-picai-training/src/picai_baseline/flwr/outputs/2025-02-23/15-31-47/model_state_rank_0.6518681856663044_round_20.pth"),
-        Path("/home/zimon/flwr-picai-training/input/images/10005"))
+        WEIGHTS_FILE,
+        PATIENT)
      .predict())

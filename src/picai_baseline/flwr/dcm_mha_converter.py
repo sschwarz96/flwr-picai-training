@@ -1,8 +1,7 @@
-import os
 import SimpleITK as sitk
 
-dicom_dir = r"C:\Users\johars\OneDrive - Region Midtjylland\Skrivebord\Inference test\11079818\00a1378e-492d-4521-ad14-4c705fded781.dcm"
-output_file = r"C:\Users\johars\OneDrive - Region Midtjylland\Skrivebord\python\federated-learning\flwr-picai-training\src\picai_baseline\flwr\inference_output\test.mha"
+dicom_dir = r""
+output_file = r""
 
 
 def dicom_to_mha():

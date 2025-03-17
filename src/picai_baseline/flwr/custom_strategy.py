@@ -1,5 +1,3 @@
-"""pytorch-example: A Flower / PyTorch app."""
-
 import json
 from datetime import datetime
 from logging import INFO

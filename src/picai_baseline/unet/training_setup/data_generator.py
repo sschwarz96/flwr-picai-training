@@ -1,3 +1,7 @@
+# This file is part of the PiCAI Baseline U-Net (Apache 2.0 License)
+# Modified by Simon Schwarz on 19.2.25 and 24.2.25
+# Changes: Number of threads adjusted and function added that returns number of elements in dataloader
+
 #  Copyright 2022 Diagnostic Image Analysis Group, Radboudumc, Nijmegen, The Netherlands
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
