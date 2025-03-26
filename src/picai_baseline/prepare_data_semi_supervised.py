@@ -25,14 +25,14 @@ from picai_prep.examples.mha2nnunet.picai_archive import \
     generate_mha2nnunet_settings
 from tqdm import tqdm
 
-from picai_baseline.splits.picai import nnunet_splits as picai_pub_splits
-from picai_baseline.splits.picai_debug import \
+from src.picai_baseline.splits.picai import nnunet_splits as picai_pub_splits
+from src.picai_baseline.splits.picai_debug import \
     nnunet_splits as picai_debug_splits
-from picai_baseline.splits.picai_nnunet import \
+from src.picai_baseline.splits.picai_nnunet import \
     nnunet_splits as picai_pub_nnunet_splits
-from picai_baseline.splits.picai_pubpriv import \
+from src.picai_baseline.splits.picai_pubpriv import \
     nnunet_splits as picai_pubpriv_splits
-from picai_baseline.splits.picai_pubpriv_nnunet import \
+from src.picai_baseline.splits.picai_pubpriv_nnunet import \
     nnunet_splits as picai_pubpriv_nnunet_splits
 
 """

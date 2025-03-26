@@ -4,11 +4,19 @@ from collections import OrderedDict
 from logging import INFO
 from pathlib import Path
 from typing import List
+import sys
 
 import numpy as np
 import torch
 from flwr.common import ndarrays_to_parameters, Parameters, log
 from torch import nn
+
+
+script_dir = os.path.dirname(os.path.abspath(__file__))  # flwr/
+project_root = os.path.abspath(os.path.join(script_dir, "../../../"))  # Moves up to project root
+
+# Add project root to Python path
+sys.path.append(project_root)
 
 from src.picai_baseline.flwr.run_config import run_configuration
 from src.picai_baseline.unet.training_setup.callbacks import optimize_model, validate_model

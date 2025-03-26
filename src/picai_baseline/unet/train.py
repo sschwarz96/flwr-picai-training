@@ -156,7 +156,7 @@ def main():
             f"Training Complete! Peak Validation Ranking Score: {tracking_metrics['best_metric']:.4f} "
             f"@ Epoch: {tracking_metrics['best_metric_epoch']}")
         with open(
-                f"/home/zimon/picai_baseline/workdir/results/UNet/metrics/training_metrics{tracking_metrics['fold_id']}.csv",
+                f"./workdir/results/UNet/metrics/training_metrics{tracking_metrics['fold_id']}.csv",
                 "w", newline="") as file:
             csv_writer = csv.writer(file)
 

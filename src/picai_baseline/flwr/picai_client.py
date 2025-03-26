@@ -72,7 +72,7 @@ def client_fn(context: Context) -> Client:
     train_gen = apply_augmentations(
         dataloader=trainloader,
         num_threads=args.num_threads,
-        disable=(not bool(args.enable_da))
+        disable=(not bool(args.enable_da)),
     )
 
     # initialize multi-threaded augmenter in background

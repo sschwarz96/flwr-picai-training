@@ -60,7 +60,7 @@ class CustomFedAvg(FedAvg):
 
         If so, the model checkpoint is saved to disk.
         """
-        if ranking > self.best_ranking_so_far:
+        if ranking > self.best_ranking_so_far and round != 0:
             self.best_ranking_so_far = ranking
             logger.log(INFO, "💡 New best global model found: %f", ranking)
             # You could save the parameters object directly.
@@ -86,6 +86,7 @@ class CustomFedAvg(FedAvg):
             self, server_round: int, parameters: Parameters
     ) -> Optional[tuple[float, dict[str, Scalar]]]:
 
+        print(f"SERVER ROUND {server_round}")
         if server_round == 0 and not run_configuration.resume_training:
             return None
         loss, metrics = super().evaluate(server_round=server_round, parameters=parameters)

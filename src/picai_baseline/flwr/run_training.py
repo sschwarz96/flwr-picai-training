@@ -3,12 +3,22 @@
 from flwr.client import ClientApp
 from flwr.server import ServerApp
 from flwr.simulation import run_simulation
+import os
+import sys
 
 import torch
+
+script_dir = os.path.dirname(os.path.abspath(__file__))  # flwr/
+project_root = os.path.abspath(os.path.join(script_dir, "../../../"))  # Moves up to project root
+
+# Add project root to Python path
+sys.path.append(project_root)
 
 from src.picai_baseline.flwr.picai_client import client_fn
 from src.picai_baseline.flwr.picai_server import server_fn
 from src.picai_baseline.flwr.run_config import run_configuration
+
+print(f"CURRENT {os.getcwd()}") 
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 backend_config = {"client_resources": {"num_cpus": run_configuration.num_threads, "num_gpus": 0.0}}

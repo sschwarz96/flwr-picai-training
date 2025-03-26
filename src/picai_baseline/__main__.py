@@ -15,8 +15,8 @@
 import argparse
 import os
 
-from picai_baseline.prepare_data import prepare_data
-from picai_baseline.prepare_data_semi_supervised import \
+from src.picai_baseline.prepare_data import prepare_data
+from src.picai_baseline.prepare_data_semi_supervised import \
     prepare_data_semi_supervised
 
 if __name__ == '__main__':

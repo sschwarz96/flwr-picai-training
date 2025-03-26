@@ -14,8 +14,8 @@
 
 from copy import deepcopy
 
-from picai_baseline.splits import subject_list_annotated
-from picai_baseline.splits.picai import (nnunet_splits, train_splits,
+from src.picai_baseline.splits import subject_list_annotated
+from src.picai_baseline.splits.picai import (nnunet_splits, train_splits,
                                          valid_splits)
 
 # read dataset configurations
