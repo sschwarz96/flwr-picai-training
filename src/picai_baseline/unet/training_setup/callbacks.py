@@ -1,6 +1,6 @@
 # This file is part of the PiCAI Baseline U-Net (Apache 2.0 License)
 # Modified by Simon Schwarz on 19.2.25
-# Changes: Adapted to also track validation loss and removed writer logic
+# Changes: Adapted to also track validation loss and removed writer logic + resume/restart logic
 
 
 #  Copyright 2022 Diagnostic Image Analysis Group, Radboudumc, Nijmegen, The Netherlands
