@@ -166,10 +166,14 @@ def validate_model(model, optimizer, loss_func, valid_gen, args, device):
         vs. csPCa (n={num_pos})]:\nRanking Score = {valid_metrics.score:.3f},\
         AP = {valid_metrics.AP:.3f}, AUROC = {valid_metrics.auroc:.3f}", flush=True)
 
+
+    best_f2, best_threshold = valid_metrics.F2
+    best_f2_threshold = {"best_threshold": best_threshold, "best_f2": best_f2}
     tracking_metrics = {
         "average_precision": valid_metrics.AP,
         "auroc": valid_metrics.auroc,
         "ranking": valid_metrics.score,
+        "best_f2": best_f2_threshold,
         "loss": avg_loss  # Include loss
     }
     return model, optimizer, valid_gen, tracking_metrics

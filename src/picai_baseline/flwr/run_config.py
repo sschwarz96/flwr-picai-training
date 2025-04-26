@@ -12,7 +12,7 @@ class RunConfig:
         self.image_shape = [20, 256, 256]  # (z, y, x)
         self.num_channels = 3
         self.num_classes = 2
-        self.base_lr = 0.001
+        self.base_lr = 0.005
         self.focal_loss_gamma = 1.0
         self.enable_da = 1  # Data Augmentation
         self.random_seed = 42  # For reproducibility
@@ -25,16 +25,16 @@ class RunConfig:
         self.use_def_model_hp = 1
 
         # Federated Learning Config
-        self.num_train_epochs = 10
+        self.num_train_epochs = 2
         self.central_evaluation = True
         self.num_clients = 3
-        self.num_rounds = 20
+        self.num_rounds = 50
         self.num_gpus = 1.0
-        self.num_threads = 4
+        self.num_threads = 3
         self.fraction_fit = 1.0
         self.evaluate_fit = 0.0 if self.central_evaluation else 1.0
-        self.folds = [0, 1, 2, 3] if self.central_evaluation else [0, 1, 2, 3, 4]
-        self.evaluation_fold = 4 if self.central_evaluation else None
+        self.folds = [0, 1, 2] if self.central_evaluation else [0, 1, 2, 3, 4]
+        self.evaluation_fold = 3 if self.central_evaluation else None
 
     def to_dict(self):
         """Convert the class attributes to a dictionary for JSON serialization."""

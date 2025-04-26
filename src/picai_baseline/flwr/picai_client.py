@@ -31,6 +31,7 @@ class PicaiFlowerCLient(NumPyClient):
         return get_parameters(self.net)
 
     def fit(self, parameters, config):
+        print(f"Partition id {self.partition_id}")
         set_parameters(self.net, parameters)
         print(f"Device type: {type(self.device)}, Value: {self.device}")
         train(self.net, self.optimizer, self.loss_func, self.trainloader, self.args, self.device,
@@ -55,12 +56,11 @@ def client_fn(context: Context) -> Client:
     # will train and evaluate on their own unique data partition
     # Read the node_config to fetch data partition associated to this node
     partition_id = context.node_config["partition-id"]
-    print(f"Partition id {partition_id}")
 
-    random.seed(run_configuration.random_seed)
-    random_number = randint(0, len(run_configuration.folds))
+    # random.seed(run_configuration.random_seed)
+    # random_number = randint(0, len(run_configuration.folds))
 
-    fold_id = (partition_id + random_number) % len(run_configuration.folds)
+    fold_id = partition_id % len(run_configuration.folds)
 
     # Call compute_spec_for_run with assigned GPU
     device, args = compute_spec_for_run(args=run_configuration)

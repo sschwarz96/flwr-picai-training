@@ -140,8 +140,7 @@ def main():
 
             model, optimizer, train_gen, tracking_metrics, writer = optimize_model(
                 model=model, optimizer=optimizer, loss_func=loss_func, train_gen=train_gen,
-                args=args, tracking_metrics=tracking_metrics, device=device, writer=writer
-            )
+                args=args,  device=device)
 
             # ----------------------------------------------------------------------------------------------------------------------
             # for each round of validation
@@ -151,8 +150,7 @@ def main():
                 with torch.no_grad():  # no gradient updates during validation
 
                     model, optimizer, valid_gen, tracking_metrics, writer = validate_model(
-                        model=model, optimizer=optimizer, valid_gen=valid_gen, args=args,
-                        tracking_metrics=tracking_metrics, device=device, writer=writer
+                        model=model, optimizer=optimizer, valid_gen=valid_gen, args=args, device=device,
 
                     )
         # --------------------------------------------------------------------------------------------------------------------------
