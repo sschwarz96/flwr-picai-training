@@ -20,7 +20,7 @@ class RunConfig:
         # Neural Network-Specific Hyperparameters
         self.model_type = "unet"
         self.model_strides = [(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]
-        self.model_features = [32, 64, 128, 256, 512, 1024]
+        self.model_features = [8, 16, 32, 64, 128, 256]
         self.batch_size = 8
         self.use_def_model_hp = 1
 
@@ -35,6 +35,11 @@ class RunConfig:
         self.evaluate_fit = 0.0 if self.central_evaluation else 1.0
         self.folds = [0, 1, 2] if self.central_evaluation else [0, 1, 2, 3, 4]
         self.evaluation_fold = 3 if self.central_evaluation else None
+
+        # Privacy related
+        self.epsilon = 3.0
+        self.delta = 1e-5
+        self.max_grad_norm = 1.0
 
     def to_dict(self):
         """Convert the class attributes to a dictionary for JSON serialization."""

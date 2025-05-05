@@ -16,7 +16,8 @@ backend_config = {"client_resources": {"num_cpus": run_configuration.num_threads
 # When running on GPU, assign an entire GPU for each client
 if DEVICE == "cuda":
     backend_config = {
-        "client_resources": {"num_cpus": run_configuration.num_threads, "num_gpus": run_configuration.num_gpus}}
+        "client_resources": {"num_cpus": run_configuration.num_threads, "num_gpus": run_configuration.num_gpus},
+        "reuse_actors": True}
     # Refer to our Flower framework documentation for more details about Flower simulations
     # and how to set up the `backend_config`
 

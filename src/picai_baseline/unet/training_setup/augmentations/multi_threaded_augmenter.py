@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import queue
 import traceback
 from typing import List, Union
 import threading
@@ -31,40 +31,45 @@ except ImportError:
     torch = None
 
 
-def producer(queue, data_loader, transform, thread_id, seed, abort_event, wait_time: float = 0.02):
+def producer(q, loader, transform, thread_id, seed, abort_event, wait=0.02):
     np.random.seed(seed)
-    data_loader.set_thread_id(thread_id)
-    item = None
+    loader.set_thread_id(thread_id)
+    it = iter(loader)
 
-    try:
-        while True:
-            # check if abort event was set
-            if not abort_event.is_set():
-                # print("worker %d event not set" % thread_id)
-                if item is None:
-                    try:
-                        item = next(data_loader)
-                        if transform is not None:
-                            item = transform(**item)
-                    except StopIteration:
-                        item = "end"
+    while not abort_event.is_set():
+        try:
+            raw = next(it)
+        except StopIteration:
+            return
+        except Exception:
+            continue  # loader hiccup, skip
 
-                if not queue.full():
-                    queue.put(item)
-                    item = None
-                else:
-                    sleep(wait_time)
-            else:
-                # print("worder %d event is now set, exiting" % thread_id)
+        # normalize list→dict
+        if isinstance(raw, list) and len(raw)==2:
+            raw = {'data': raw[0], 'seg': raw[1]}
+        # skip empties
+        if (isinstance(raw, dict)
+            and raw.get('data') is not None and raw['data'].shape and raw['data'].shape[0]>0
+            and raw.get('seg')  is not None and raw['seg'].shape  and raw['seg'].shape[0]>0):
+            try:
+                out = transform(**raw) if transform else raw
+            except Exception:
+                out = raw  # or continue to re-draw
+        else:
+            continue
+
+        # enqueue (blocking put is OK if you size your Q)
+        while not abort_event.is_set():
+            try:
+                q.put(out, timeout=wait)
+                break
+            except queue.Full:
+                sleep(wait)
+            except Exception as e:
+                # something unexpected happened—log it, abort, etc.
+                print(f"Unexpected error enqueuing: {e}")
+                abort_event.set()
                 return
-    except KeyboardInterrupt:
-        abort_event.set()
-        return
-    except Exception as e:
-        print("Exception in background worker %d:\n" % thread_id, e)
-        traceback.print_exc()
-        abort_event.set()
-        return
 
 
 def results_loop(in_queues: List[Queue], out_queue: thrQueue, abort_event: Event, pin_memory: bool,
@@ -185,7 +190,7 @@ class MultiThreadedAugmenter(object):
             if self.abort_event.is_set():
                 self._finish()
 
-            if not self.pin_memory_queue.empty():
+            if self.pin_memory_queue and not self.pin_memory_queue.empty():
                 item = self.pin_memory_queue.get()
             else:
                 sleep(self.wait_time)
@@ -278,14 +283,14 @@ class MultiThreadedAugmenter(object):
             self._end_ctr = 0
             self._queue_ctr = 0
 
-            del self.pin_memory_queue
+            self.pin_memory_queue = None
         self.was_initialized = False
 
     def restart(self):
         self._finish()
         self._start()
 
-# << Not Required in Dockerized Setup >>
+    # << Not Required in Dockerized Setup >>
     def __del__(self):
         logging.debug("MultiThreadedGenerator: destructor was called")
         self._finish()

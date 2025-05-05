@@ -30,28 +30,39 @@ from src.picai_baseline.unet.training_setup.image_reader import SimpleITKDataset
 
 
 def default_collate(batch):
-    """collate multiple samples into batches, if needed"""
+    """Collate multiple samples into batches of NumPy arrays in a dict."""
+    sample = batch[0]
 
-    if isinstance(batch[0], np.ndarray):
+    # 1) If it’s already a NumPy scalar/array/list, stack with vstack or np.array
+    if isinstance(sample, np.ndarray):
         return np.vstack(batch)
-    elif isinstance(batch[0], (int, np.int64)):
-        return np.array(batch).astype(np.int32)
-    elif isinstance(batch[0], (float, np.float32)):
-        return np.array(batch).astype(np.float32)
-    elif isinstance(batch[0], (np.float64,)):
-        return np.array(batch).astype(np.float64)
-    elif isinstance(batch[0], (dict, OrderedDict)):
-        return {key: default_collate([d[key] for d in batch]) for key in batch[0]}
-    elif isinstance(batch[0], (tuple, list)):
-        transposed = zip(*batch)
-        return [default_collate(samples) for samples in transposed]
-    elif isinstance(batch[0], str):
-        return batch
-    elif isinstance(batch[0], torch.Tensor):
-        return torch.vstack(batch)
-    else:
-        raise TypeError('unknown type for batch:', type(batch))
+    if isinstance(sample, (int, np.int64)):
+        return np.array(batch, dtype=np.int32)
+    if isinstance(sample, (float, np.float32)):
+        return np.array(batch, dtype=np.float32)
+    if isinstance(sample, (np.float64,)):
+        return np.array(batch, dtype=np.float64)
 
+    # 2) If it’s a dict‐like, recurse per key
+    if isinstance(sample, (dict, OrderedDict)):
+        return {
+            key: default_collate([d[key] for d in batch])
+            for key in sample
+        }
+
+    # 3) If it’s a tuple/list, transpose and collate each field
+    if isinstance(sample, (tuple, list)):
+        transposed = list(zip(*batch))
+        return [default_collate(field) for field in transposed]
+
+    # 4) If it’s a torch.Tensor, first move to CPU & numpy, then vstack
+    if isinstance(sample, torch.Tensor):
+        # Move all to CPU & NumPy
+        np_batch = [t.cpu().numpy() for t in batch]
+        # Now each is a NumPy array, so we can vstack
+        return np.vstack(np_batch)
+
+    raise TypeError(f"Unknown batch element type: {type(sample)}")
 
 class DataLoaderFromDataset(DataLoader):
     """Create dataloader from given dataset"""
@@ -63,6 +74,7 @@ class DataLoaderFromDataset(DataLoader):
                                                     infinite=infinite)
         self.collate_fn = collate_fn
         self.indices = np.arange(len(data))
+        self.dataset = data
 
     def get_data_length(self) -> int:
         return len(self._data)

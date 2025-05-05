@@ -1,3 +1,4 @@
+import numpy as np
 from flwr.common import Context, Metrics, log, NDArrays
 from flwr.server import ServerAppComponents, ServerConfig
 
@@ -9,6 +10,7 @@ from src.picai_baseline.unet.training_setup.compute_spec import compute_spec_for
 from src.picai_baseline.unet.training_setup.loss_functions.focal import FocalLoss
 from src.picai_baseline.unet.training_setup.neural_network_selector import neural_network_for_run
 import torch
+from flwr.common.typing import Scalar
 
 
 def fit_config(server_round: int):
@@ -20,6 +22,18 @@ def fit_config(server_round: int):
         "ttl": 3600
     }
     return config
+
+
+def average_privacy(
+        metrics_list: list[tuple[int, dict[str, Scalar]]]
+) -> dict[str, Scalar]:
+    # metrics_list is [(num_examples, {"epsilon":..., "alpha":...}), ...]
+    epsilons = [metrics["epsilon"] for _, metrics in metrics_list]
+    alphas = [metrics["alpha"] for _, metrics in metrics_list]
+    return {
+        "epsilon": float(np.mean(epsilons)),
+        "alpha": float(np.mean(alphas)),
+    }
 
 
 def evaluate_config(server_round: int):
@@ -39,7 +53,7 @@ def create_central_evaluation():
 
     # Load centralized test dataset
     # Note: You might want to use a specific fold or combine validation sets
-    _, test_loader, class_weights = load_datasets(fold_id=4)
+    _, test_loader, class_weights = load_datasets(fold_id=run_configuration.evaluation_fold)
 
     # Initialize model for evaluation
     net = neural_network_for_run(args=args, device=device)
@@ -109,6 +123,7 @@ def server_fn(context: Context) -> ServerAppComponents:
         min_available_clients=run_configuration.num_clients,  # Wait until all 10 clients are available
         on_fit_config_fn=fit_config,  # Pass the `fit_config` function
         on_evaluate_config_fn=evaluate_config,
+        fit_metrics_aggregation_fn=average_privacy,
         evaluate_metrics_aggregation_fn=weighted_average,
     )
     if run_configuration.central_evaluation:

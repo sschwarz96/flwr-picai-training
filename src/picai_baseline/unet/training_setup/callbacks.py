@@ -18,16 +18,15 @@
 #  limitations under the License.
 
 import time
-from pathlib import Path
 
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn.functional as F
 from picai_eval import Metrics
 from picai_eval.eval import evaluate_case
 from report_guided_annotation import extract_lesion_candidates
 from scipy.ndimage import gaussian_filter
+from torch.cuda.amp import autocast, GradScaler
 
 from src.picai_baseline.unet.training_setup.poly_lr import poly_lr
 
@@ -42,6 +41,12 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
     # for each mini-batch or optimization step
     for batch_data in train_gen:
         step += 1
+        if isinstance(batch_data, list):
+            copy_data = batch_data
+            batch_data = {
+                'data': copy_data[0],
+                'seg': copy_data[1]
+            }
         try:
             inputs = batch_data['data'].to(device)
             labels = batch_data['seg'].to(device)
@@ -59,6 +64,9 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
+
+        # Clear cache after computation
+        torch.cuda.empty_cache()
 
         # define each training epoch == 100 steps (note: nnU-Net uses 250 steps)
         if step >= 100:
@@ -165,7 +173,6 @@ def validate_model(model, optimizer, loss_func, valid_gen, args, device):
     print(f"Valid. Performance [Benign or Indolent PCa (n={num_neg}) \
         vs. csPCa (n={num_pos})]:\nRanking Score = {valid_metrics.score:.3f},\
         AP = {valid_metrics.AP:.3f}, AUROC = {valid_metrics.auroc:.3f}", flush=True)
-
 
     best_f2, best_threshold = valid_metrics.F2
     best_f2_threshold = {"best_threshold": best_threshold, "best_f2": best_f2}
