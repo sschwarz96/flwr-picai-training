@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import queue
-import traceback
 from typing import List, Union
 import threading
 from multiprocessing import Process, Queue
@@ -40,17 +39,18 @@ def producer(q, loader, transform, thread_id, seed, abort_event, wait=0.02):
         try:
             raw = next(it)
         except StopIteration:
-            return
+            it = iter(loader)
+            continue
         except Exception:
             continue  # loader hiccup, skip
 
         # normalize list→dict
-        if isinstance(raw, list) and len(raw)==2:
-            raw = {'data': raw[0], 'seg': raw[1]}
+        # if isinstance(raw, list) and len(raw)==2:
+        #   raw = {'data': raw[0], 'seg': raw[1]}
         # skip empties
         if (isinstance(raw, dict)
-            and raw.get('data') is not None and raw['data'].shape and raw['data'].shape[0]>0
-            and raw.get('seg')  is not None and raw['seg'].shape  and raw['seg'].shape[0]>0):
+                and raw.get('data') is not None and raw['data'].shape and raw['data'].shape[0] > 0
+                and raw.get('seg') is not None and raw['seg'].shape and raw['seg'].shape[0] > 0):
             try:
                 out = transform(**raw) if transform else raw
             except Exception:
@@ -61,6 +61,11 @@ def producer(q, loader, transform, thread_id, seed, abort_event, wait=0.02):
         # enqueue (blocking put is OK if you size your Q)
         while not abort_event.is_set():
             try:
+                if torch.is_tensor(out):
+                    out = out.cpu().clone().numpy()
+                elif isinstance(out, dict):
+                    out = {k: v.cpu().clone().numpy() if torch.is_tensor(v) else v
+                           for k, v in out.items()}
                 q.put(out, timeout=wait)
                 break
             except queue.Full:
@@ -101,7 +106,7 @@ def results_loop(in_queues: List[Queue], out_queue: thrQueue, abort_event: Event
                 current_queue = in_queues[queue_ctr % len(in_queues)]
                 if not current_queue.empty():
                     # get the item
-                    item = current_queue.get()
+                    item = current_queue.get(timeout=3)
                     # if we do pin memory, do it now, otherwise skip this
                     if do_pin_memory:
                         if isinstance(item, dict):

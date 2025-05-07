@@ -1,5 +1,5 @@
 import numpy as np
-from flwr.common import Context, Metrics, log, NDArrays
+from flwr.common import Context, Metrics, log, NDArrays, RecordSet
 from flwr.server import ServerAppComponents, ServerConfig
 
 from src.picai_baseline.flwr.custom_strategy import CustomFedAvg
@@ -49,17 +49,17 @@ def evaluate_config(server_round: int):
 
 def create_central_evaluation():
     """Create evaluation components for centralized evaluation."""
-    device, args = compute_spec_for_run(args=run_configuration)
+    device = compute_spec_for_run()
 
     # Load centralized test dataset
     # Note: You might want to use a specific fold or combine validation sets
     _, test_loader, class_weights = load_datasets(fold_id=run_configuration.evaluation_fold)
 
     # Initialize model for evaluation
-    net = neural_network_for_run(args=args, device=device)
-    loss_func = FocalLoss(alpha=class_weights[-1], gamma=args.focal_loss_gamma).to(device)
+    net = neural_network_for_run(args=run_configuration, device=device)
+    loss_func = FocalLoss(alpha=class_weights[-1], gamma=run_configuration.focal_loss_gamma).to(device)
 
-    return net, test_loader, loss_func, device, args
+    return net, test_loader, loss_func, device, run_configuration
 
 
 def centralized_evaluate(
@@ -115,6 +115,7 @@ def server_fn(context: Context) -> ServerAppComponents:
     construction of all elements (e.g the strategy or the number of rounds)
     wrapped in the returned ServerAppComponents object.
     """
+
 
     strategy = CustomFedAvg(
         run_config=run_configuration.to_dict(),

@@ -146,5 +146,6 @@ src/picai_baseline/nnunet_semi_supervised/training_sagemaker/run_preprocessing_p
 .idea
 input
 workdir
+old_workdir
 runs
 files-archive

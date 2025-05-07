@@ -17,10 +17,10 @@ import os
 import torch
 
 
-def compute_spec_for_run(args, train_device='cuda'):
+def compute_spec_for_run(train_device='cuda'):
     """Register GPU/CPU specifications"""
     device = torch.device(train_device)
     
     print("-"*100)
     print("GPUs:", torch.cuda.get_device_name(0))
-    return device, args
+    return device

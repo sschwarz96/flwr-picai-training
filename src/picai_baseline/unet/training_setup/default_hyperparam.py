@@ -33,7 +33,7 @@ def get_default_hyperparams(args):
     # used at train-time
     else:
         if args.model_type == 'unet':
-            args.batch_size = unet_hyperparam['batch_size']
+            args.virtual_batch_size = unet_hyperparam['batch_size']
             args.model_strides = unet_hyperparam['model_strides']
             args.model_features = unet_hyperparam['model_features']
     return args

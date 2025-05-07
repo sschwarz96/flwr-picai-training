@@ -64,6 +64,7 @@ def default_collate(batch):
 
     raise TypeError(f"Unknown batch element type: {type(sample)}")
 
+
 class DataLoaderFromDataset(DataLoader):
     """Create dataloader from given dataset"""
 
@@ -118,17 +119,18 @@ def prepare_datagens(args, fold_id):
 
     # dummy dataloader for sanity check
     pretx = [EnsureType()]
-    check_ds = SimpleITKDataset(image_files=train_data[0][:args.batch_size * 2],
-                                seg_files=train_data[1][:args.batch_size * 2],
+    check_ds = SimpleITKDataset(image_files=train_data[0][:args.virtual_batch_size * 2],
+                                seg_files=train_data[1][:args.virtual_batch_size * 2],
                                 transform=Compose(pretx),
                                 seg_transform=Compose(pretx))
-    check_loader = DataLoaderFromDataset(check_ds, batch_size=args.batch_size, num_threads=args.num_threads - 1)
+    check_loader = DataLoaderFromDataset(check_ds, batch_size=args.virtual_batch_size, num_threads=args.num_threads_clients)
     data_pair = monai.utils.misc.first(check_loader)
     print('DataLoader - Image Shape: ', data_pair['data'].shape)
     print('DataLoader - Label Shape: ', data_pair['seg'].shape)
     print("-" * 100)
 
-    assert args.image_shape == list(data_pair['data'].shape[2:])
+    assert args.image_shape == list(data_pair['data'].shape[
+                                    2:]), f"Expected shape {args.image_shape} but shape was {list(data_pair['data'].shape[2:])} "
     assert args.num_channels == data_pair['data'].shape[1]
     assert args.num_classes == len(np.unique(train_json['case_label']))
 
@@ -138,10 +140,10 @@ def prepare_datagens(args, fold_id):
     valid_ds = SimpleITKDataset(image_files=valid_data[0], seg_files=valid_data[1],
                                 transform=Compose(pretx), seg_transform=Compose(pretx))
     train_ldr = DataLoaderFromDataset(train_ds,
-                                      batch_size=args.batch_size, num_threads=args.num_threads - 1, infinite=True,
+                                      batch_size=args.virtual_batch_size, num_threads=args.num_threads_clients, infinite=True,
                                       shuffle=True)
     valid_ldr = DataLoaderFromDataset(valid_ds,
-                                      batch_size=args.batch_size, num_threads=args.num_threads - 1, infinite=False,
+                                      batch_size=args.virtual_batch_size, num_threads=args.num_threads_clients, infinite=False,
                                       shuffle=False)
 
     return train_ldr, valid_ldr, class_weights.astype(np.float32)

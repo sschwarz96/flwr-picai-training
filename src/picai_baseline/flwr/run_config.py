@@ -9,37 +9,39 @@ class RunConfig:
         self.overviews_dir = "/home/zimon/picai_baseline/workdir/results/UNet/overviews/Task2203_picai_baseline"
 
         # Training Hyperparameters
-        self.image_shape = [20, 256, 256]  # (z, y, x)
+        self.image_shape = [16, 128, 128]  # (z, y, x)
         self.num_channels = 3
         self.num_classes = 2
-        self.base_lr = 0.005
+        self.base_lr = 0.002
         self.focal_loss_gamma = 1.0
-        self.enable_da = 1  # Data Augmentation
+        self.enable_da = True  # Data Augmentation
         self.random_seed = 42  # For reproducibility
 
         # Neural Network-Specific Hyperparameters
         self.model_type = "unet"
         self.model_strides = [(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]
-        self.model_features = [8, 16, 32, 64, 128, 256]
-        self.batch_size = 8
+        self.model_features = [32, 64, 128, 256, 512, 1024]
+        self.virtual_batch_size = 32
+        self.physical_batch_size = 3
         self.use_def_model_hp = 1
 
         # Federated Learning Config
-        self.num_train_epochs = 2
+        self.num_train_epochs = 4
         self.central_evaluation = True
         self.num_clients = 3
-        self.num_rounds = 50
+        self.num_rounds = 25
         self.num_gpus = 1.0
-        self.num_threads = 3
+        self.num_threads_clients = 3
+        self.num_threads_augmenting = 2
         self.fraction_fit = 1.0
         self.evaluate_fit = 0.0 if self.central_evaluation else 1.0
         self.folds = [0, 1, 2] if self.central_evaluation else [0, 1, 2, 3, 4]
         self.evaluation_fold = 3 if self.central_evaluation else None
 
         # Privacy related
-        self.epsilon = 3.0
+        self.epsilon = 10000
         self.delta = 1e-5
-        self.max_grad_norm = 1.0
+        self.max_grad_norm = 2.0
 
     def to_dict(self):
         """Convert the class attributes to a dictionary for JSON serialization."""

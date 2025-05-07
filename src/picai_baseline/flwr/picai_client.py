@@ -1,18 +1,16 @@
-import os
-import random
 import types
-from random import randint
 
 import torch
 import torch.cuda
 from flwr.client import NumPyClient, Client
 from flwr.common import Context
-from opacus.accountants import RDPAccountant
+from opacus.accountants import RDPAccountant, rdp
 from opacus.optimizers import DPOptimizer
 from opacus.utils.batch_memory_manager import wrap_data_loader
 from opacus.utils.uniform_sampler import UniformWithReplacementSampler
 from torch.utils.data import DataLoader
 
+from src.picai_baseline.flwr.outputs.dp_state_manager import DPStateManager
 from src.picai_baseline.unet.training_setup.data_generator import DataLoaderFromDataset, default_collate
 from src.picai_baseline.flwr.federated_training_methods import load_datasets, set_parameters, \
     get_parameters, train, test
@@ -22,30 +20,15 @@ from src.picai_baseline.unet.training_setup.compute_spec import compute_spec_for
 from src.picai_baseline.unet.training_setup.loss_functions.focal import FocalLoss
 from src.picai_baseline.unet.training_setup.neural_network_selector import neural_network_for_run
 from opacus import PrivacyEngine
-import logging
+import gc
+from opacus.accountants.utils import get_noise_multiplier
 
-# 1) Configure the root logger to print DEBUG+ messages
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s %(name)s %(levelname)5s │ %(message)s",
-)
-
-# 2) Explicitly set Opacus’s logger to DEBUG
-logging.getLogger("opacus").setLevel(logging.DEBUG)
-
-_privacy_engines: dict[int, PrivacyEngine] = {}
-
-
-def get_privacy_engine(participant_id: int) -> PrivacyEngine:
-    # create one PrivacyEngine per (persistent) client ID
-    if participant_id not in _privacy_engines:
-        _privacy_engines[participant_id] = PrivacyEngine()
-    return _privacy_engines[participant_id]
+from pathlib import Path
 
 
 class PicaiFlowerClient(NumPyClient):
     def __init__(self, net, trainloader, valloader, optimizer, loss_func, arguments,
-                 device, partition_id, privacy_engine):
+                 device, partition_id, privacy_engine, dp_state_manager):
         self.net = net
         self.trainloader = trainloader
         self.valloader = valloader
@@ -55,6 +38,7 @@ class PicaiFlowerClient(NumPyClient):
         self.device = device
         self.partition_id = partition_id
         self.privacy_engine = privacy_engine
+        self.dp_state_manager: DPStateManager = dp_state_manager
 
     def get_parameters(self, config):
         return get_parameters(self.net)
@@ -87,6 +71,8 @@ class PicaiFlowerClient(NumPyClient):
         )
         print(f"[Client {self.partition_id}] ◁ After this round, cumulative ε = {eps_after:.4f}, α = {alpha}")
 
+        self.dp_state_manager.save(self.partition_id, self.privacy_engine.accountant)
+
         # 4) Return updated weights, num examples, and ε as a metric
         #    You can also include alpha if you want:
         metrics = {"epsilon": float(eps_after), "alpha": float(alpha)}
@@ -104,14 +90,18 @@ class PicaiFlowerClient(NumPyClient):
 
 def client_fn(context: Context) -> Client:
     """Create a Flower client representing a single organization."""
-
+    gc.collect()
+    torch.cuda.empty_cache()
     # Load data (CIFAR-10)
     # Note: each client gets a different trainloader/valloader, so each client
     # will train and evaluate on their own unique data partition
     # Read the node_config to fetch data partition associated to this node
     partition_id = context.node_config["partition-id"]
 
-    privacy_engine = get_privacy_engine(partition_id)
+    dp_state_manager = DPStateManager()
+
+    # Check if we already have a saved accountant
+    privacy_engine = PrivacyEngine()
 
     # random.seed(run_configuration.random_seed)
     # random_number = randint(0, len(run_configuration.folds))
@@ -119,7 +109,7 @@ def client_fn(context: Context) -> Client:
     fold_id = partition_id % len(run_configuration.folds)
 
     # Call compute_spec_for_run with assigned GPU
-    device, args = compute_spec_for_run(args=run_configuration)
+    device = compute_spec_for_run()
 
     print(f"Initial Device type: {type(device)}, Value: {device}")
 
@@ -128,37 +118,31 @@ def client_fn(context: Context) -> Client:
     wrapped_dataset = PicaiDatasetWrapper(trainloader)
     print(f"Client {partition_id} dataset length = {len(wrapped_dataset)}")
 
-    train_data_loader = DataLoader(wrapped_dataset, batch_size=run_configuration.batch_size, shuffle=True,
-                                   collate_fn=default_collate, num_workers=0)
+    train_data_loader = DataLoader(wrapped_dataset, batch_size=run_configuration.virtual_batch_size, shuffle=True,
+                                   collate_fn=default_collate, num_workers=0, pin_memory=False)
 
     # Load model
-    net = neural_network_for_run(args=args, device=device)
+    net = neural_network_for_run(args=run_configuration, device=device)
 
     # loss function + optimizer
-    loss_func = FocalLoss(alpha=class_weights[-1], gamma=args.focal_loss_gamma).to(device)
-    optimizer = torch.optim.Adam(params=net.parameters(), lr=args.base_lr, amsgrad=True)
+    loss_func = FocalLoss(alpha=class_weights[-1], gamma=run_configuration.focal_loss_gamma).to(device)
+    optimizer = torch.optim.Adam(params=net.parameters(), lr=run_configuration.base_lr, amsgrad=True)
 
-    if not hasattr(privacy_engine, "initialized"):
+    current_epsilon = run_configuration.epsilon
+    if dp_state_manager.exists(partition_id):
+        restored = dp_state_manager.load(partition_id)
+        privacy_engine.accountant = restored
+        print(f"[Client {partition_id}] ✅ Accountant fully restored with {len(restored)} steps")
+        current_epsilon = current_epsilon - privacy_engine.accountant.get_epsilon(delta=run_configuration.delta)
 
-        net, private_optimizer, private_train_loader = privacy_engine.make_private_with_epsilon(module=net,
-                                                                                                optimizer=optimizer,
-                                                                                                data_loader=train_data_loader,
-                                                                                                target_epsilon=run_configuration.epsilon,
-                                                                                                target_delta=args.delta,
-                                                                                                epochs=run_configuration.num_train_epochs * run_configuration.num_rounds,
-                                                                                                max_grad_norm=run_configuration.max_grad_norm,
-                                                                                                )
-        privacy_engine.net = net
-        privacy_engine.optimizer = private_optimizer
-        privacy_engine.data_loader = train_data_loader
-        privacy_engine.initialized = True
-    else:
-        # reuse private_opt and private_loader from last time
-        net, private_optimizer, private_train_loader = (
-            privacy_engine.net,
-            privacy_engine.optimizer,
-            privacy_engine.data_loader,
-        )
+    net, private_optimizer, private_train_loader = privacy_engine.make_private_with_epsilon(module=net,
+                                                                                            optimizer=optimizer,
+                                                                                            data_loader=train_data_loader,
+                                                                                            target_epsilon=current_epsilon,
+                                                                                            target_delta=run_configuration.delta,
+                                                                                            epochs=run_configuration.num_train_epochs * run_configuration.num_rounds,
+                                                                                            max_grad_norm=run_configuration.max_grad_norm,
+                                                                                            )
 
     # 1) Optimizer is wrapped
     assert isinstance(private_optimizer, DPOptimizer), "Optimizer isn’t a DPOptimizer!"
@@ -171,10 +155,9 @@ def client_fn(context: Context) -> Client:
     assert isinstance(privacy_engine.accountant, RDPAccountant)
     print("✅ DPOptimizer, Poisson sampler, and RDP accountant are in place.")
 
-    phys_bs = 2  # your desired micro-batch size
     private_train_loader = wrap_data_loader(
         data_loader=private_train_loader,
-        max_batch_size=phys_bs,
+        max_batch_size=run_configuration.physical_batch_size,
         optimizer=private_optimizer,
     )
 
@@ -184,18 +167,19 @@ def client_fn(context: Context) -> Client:
 
     train_gen = apply_augmentations(
         dataloader=private_train_loader,
-        num_threads=args.num_threads,
-        disable=(not bool(args.enable_da)),
+        num_threads=run_configuration.num_threads_augmenting,
+        disable=(not bool(run_configuration.enable_da)),
     )
 
     # initialize multi-threaded augmenter in background
-    train_gen.restart()
+    if hasattr(train_gen, "restart"):
+        train_gen.restart()
 
     # Create a single Flower client representing a single organization
     # FlowerClient is a subclass of NumPyClient, so we need to call .to_client()
     # to convert it to a subclass of `flwr.client.Client`
-    return PicaiFlowerClient(net, train_gen, valloader, private_optimizer, loss_func, args, device,
-                             partition_id, privacy_engine).to_client()
+    return PicaiFlowerClient(net, train_gen, valloader, private_optimizer, loss_func, run_configuration, device,
+                             partition_id, privacy_engine, dp_state_manager).to_client()
 
 
 class PicaiDatasetWrapper(torch.utils.data.Dataset):
@@ -237,3 +221,9 @@ def enforce_dict_batches(train_gen):
 
         # Anything else is a bug
         raise RuntimeError(f"Unexpected batch format in train_gen: {type(batch)}")
+
+
+def get_client_dp_state_path(participant_id: int) -> Path:
+    path = Path.home() / ".flwr_dp_states"
+    path.mkdir(exist_ok=True)
+    return path / f"client_{participant_id}.pt"
