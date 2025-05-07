@@ -185,9 +185,14 @@ class MultiThreadedAugmenter(object):
             if self.abort_event.is_set():
                 self._finish()
 
-            if not self.pin_memory_queue.empty():
-                item = self.pin_memory_queue.get()
+            # SAFE check: ensure pin_memory_queue exists and is initialized
+            if hasattr(self, 'pin_memory_queue') and self.pin_memory_queue is not None:
+                if not self.pin_memory_queue.empty():
+                    item = self.pin_memory_queue.get()
+                else:
+                    sleep(self.wait_time)
             else:
+                # Wait briefly and allow time for _start() to complete
                 sleep(self.wait_time)
 
         return item
@@ -285,7 +290,7 @@ class MultiThreadedAugmenter(object):
         self._finish()
         self._start()
 
-# << Not Required in Dockerized Setup >>
+    # << Not Required in Dockerized Setup >>
     def __del__(self):
         logging.debug("MultiThreadedGenerator: destructor was called")
         self._finish()

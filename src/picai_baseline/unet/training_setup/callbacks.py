@@ -61,7 +61,7 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
         optimizer.step()
 
         # define each training epoch == 100 steps (note: nnU-Net uses 250 steps)
-        if step >= 100:
+        if step >= 250:
             break
 
     # update learning rate

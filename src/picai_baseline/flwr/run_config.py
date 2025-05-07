@@ -9,10 +9,10 @@ class RunConfig:
         self.overviews_dir = "/home/zimon/picai_baseline/workdir/results/UNet/overviews/Task2203_picai_baseline"
 
         # Training Hyperparameters
-        self.image_shape = [20, 256, 256]  # (z, y, x)
+        self.image_shape = [16, 128, 128]  # (z, y, x)
         self.num_channels = 3
         self.num_classes = 2
-        self.base_lr = 0.005
+        self.base_lr = 0.002
         self.focal_loss_gamma = 1.0
         self.enable_da = 1  # Data Augmentation
         self.random_seed = 42  # For reproducibility
@@ -21,14 +21,14 @@ class RunConfig:
         self.model_type = "unet"
         self.model_strides = [(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]
         self.model_features = [32, 64, 128, 256, 512, 1024]
-        self.batch_size = 8
+        self.batch_size = 3
         self.use_def_model_hp = 1
 
         # Federated Learning Config
-        self.num_train_epochs = 2
+        self.num_train_epochs = 4
         self.central_evaluation = True
         self.num_clients = 3
-        self.num_rounds = 50
+        self.num_rounds = 25
         self.num_gpus = 1.0
         self.num_threads = 3
         self.fraction_fit = 1.0
