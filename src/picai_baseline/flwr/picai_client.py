@@ -1,16 +1,17 @@
+import os
 import types
 
 import torch
 import torch.cuda
 from flwr.client import NumPyClient, Client
 from flwr.common import Context
-from opacus.accountants import RDPAccountant, rdp
+from opacus.accountants import RDPAccountant
 from opacus.optimizers import DPOptimizer
 from opacus.utils.batch_memory_manager import wrap_data_loader
 from opacus.utils.uniform_sampler import UniformWithReplacementSampler
 from torch.utils.data import DataLoader
 
-from src.picai_baseline.flwr.outputs.dp_state_manager import DPStateManager
+from src.picai_baseline.flwr.dp_state_manager import DPStateManager
 from src.picai_baseline.unet.training_setup.data_generator import DataLoaderFromDataset, default_collate
 from src.picai_baseline.flwr.federated_training_methods import load_datasets, set_parameters, \
     get_parameters, train, test
@@ -21,14 +22,16 @@ from src.picai_baseline.unet.training_setup.loss_functions.focal import FocalLos
 from src.picai_baseline.unet.training_setup.neural_network_selector import neural_network_for_run
 from opacus import PrivacyEngine
 import gc
-from opacus.accountants.utils import get_noise_multiplier
 
 from pathlib import Path
+
+import opacus.grad_sample.utils
+print(opacus.grad_sample.utils.__file__)
 
 
 class PicaiFlowerClient(NumPyClient):
     def __init__(self, net, trainloader, valloader, optimizer, loss_func, arguments,
-                 device, partition_id, privacy_engine, dp_state_manager):
+                 device, partition_id, privacy_engine: PrivacyEngine, dp_state_manager):
         self.net = net
         self.trainloader = trainloader
         self.valloader = valloader
@@ -101,10 +104,7 @@ def client_fn(context: Context) -> Client:
     dp_state_manager = DPStateManager()
 
     # Check if we already have a saved accountant
-    privacy_engine = PrivacyEngine()
-
-    # random.seed(run_configuration.random_seed)
-    # random_number = randint(0, len(run_configuration.folds))
+    privacy_engine = PrivacyEngine(accountant="rdp")
 
     fold_id = partition_id % len(run_configuration.folds)
 
@@ -126,7 +126,7 @@ def client_fn(context: Context) -> Client:
 
     # loss function + optimizer
     loss_func = FocalLoss(alpha=class_weights[-1], gamma=run_configuration.focal_loss_gamma).to(device)
-    optimizer = torch.optim.Adam(params=net.parameters(), lr=run_configuration.base_lr, amsgrad=True)
+    optimizer = torch.optim.Adam(params=net.parameters(), lr=run_configuration.base_lr, amsgrad=True, weight_decay=1e-4)
 
     current_epsilon = run_configuration.epsilon
     if dp_state_manager.exists(partition_id):
@@ -142,6 +142,7 @@ def client_fn(context: Context) -> Client:
                                                                                             target_delta=run_configuration.delta,
                                                                                             epochs=run_configuration.num_train_epochs * run_configuration.num_rounds,
                                                                                             max_grad_norm=run_configuration.max_grad_norm,
+                                                                                            grad_sample_mode="functorch"
                                                                                             )
 
     # 1) Optimizer is wrapped
@@ -152,7 +153,7 @@ def client_fn(context: Context) -> Client:
     assert isinstance(bs, UniformWithReplacementSampler), f"Sampler is {type(bs)}"
 
     # 3) Accountant is RDPAccountant
-    assert isinstance(privacy_engine.accountant, RDPAccountant)
+    assert isinstance(privacy_engine.accountant, RDPAccountant), f"Privacy engine accountant is {type(privacy_engine.accountant)}"
     print("✅ DPOptimizer, Poisson sampler, and RDP accountant are in place.")
 
     private_train_loader = wrap_data_loader(

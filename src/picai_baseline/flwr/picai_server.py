@@ -1,3 +1,5 @@
+import shutil
+
 import numpy as np
 from flwr.common import Context, Metrics, log, NDArrays, RecordSet
 from flwr.server import ServerAppComponents, ServerConfig
@@ -115,7 +117,10 @@ def server_fn(context: Context) -> ServerAppComponents:
     construction of all elements (e.g the strategy or the number of rounds)
     wrapped in the returned ServerAppComponents object.
     """
-
+    try:
+        shutil.rmtree('/home/zimon/.flwr_dp_states')
+    except OSError:
+        print("No dp states from before")
 
     strategy = CustomFedAvg(
         run_config=run_configuration.to_dict(),

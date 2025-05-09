@@ -12,8 +12,8 @@ class RunConfig:
         self.image_shape = [16, 128, 128]  # (z, y, x)
         self.num_channels = 3
         self.num_classes = 2
-        self.base_lr = 0.002
-        self.focal_loss_gamma = 1.0
+        self.base_lr = 0.0005
+        self.focal_loss_gamma = 2.0
         self.enable_da = True  # Data Augmentation
         self.random_seed = 42  # For reproducibility
 
@@ -22,14 +22,13 @@ class RunConfig:
         self.model_strides = [(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]
         self.model_features = [32, 64, 128, 256, 512, 1024]
         self.virtual_batch_size = 32
-        self.physical_batch_size = 3
-        self.use_def_model_hp = 1
+        self.physical_batch_size = 8
 
         # Federated Learning Config
-        self.num_train_epochs = 4
+        self.num_train_epochs = 2
         self.central_evaluation = True
         self.num_clients = 3
-        self.num_rounds = 25
+        self.num_rounds = 30
         self.num_gpus = 1.0
         self.num_threads_clients = 3
         self.num_threads_augmenting = 2
@@ -39,9 +38,9 @@ class RunConfig:
         self.evaluation_fold = 3 if self.central_evaluation else None
 
         # Privacy related
-        self.epsilon = 10000
+        self.epsilon = 3
         self.delta = 1e-5
-        self.max_grad_norm = 2.0
+        self.max_grad_norm = 0.7
 
     def to_dict(self):
         """Convert the class attributes to a dictionary for JSON serialization."""
