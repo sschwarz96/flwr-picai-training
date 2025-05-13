@@ -95,7 +95,7 @@ def prepare_datagens(args, fold_id):
     """Load data sheets --> Create datasets --> Create data loaders"""
 
     # load datasheets
-    with open(Path(args.overviews_dir) / f'PI-CAI_train-fold-{fold_id}.json') as fp:
+    with open(Path(args.overviews_dir) / f'PI-CAI_val-fold-{fold_id}.json') as fp:
         train_json = json.load(fp)
     with open(Path(args.overviews_dir) / f'PI-CAI_val-fold-{fold_id}.json') as fp:
         valid_json = json.load(fp)
@@ -143,7 +143,7 @@ def prepare_datagens(args, fold_id):
                                       batch_size=args.virtual_batch_size, num_threads=args.num_threads_clients, infinite=True,
                                       shuffle=True)
     valid_ldr = DataLoaderFromDataset(valid_ds,
-                                      batch_size=args.virtual_batch_size, num_threads=args.num_threads_clients, infinite=False,
+                                      batch_size=int(args.virtual_batch_size/2), num_threads=args.num_threads_clients, infinite=False,
                                       shuffle=False)
 
     return train_ldr, valid_ldr, class_weights.astype(np.float32)
