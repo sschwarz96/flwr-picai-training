@@ -1,8 +1,7 @@
 # This file is part of the PiCAI Baseline U-Net (Apache 2.0 License)
 # Modified by Simon Schwarz on 19.2.25
 # Changes: Adapted to also track validation loss and removed writer logic + resume/restart logic
-
-
+import itertools
 #  Copyright 2022 Diagnostic Image Analysis Group, Radboudumc, Nijmegen, The Netherlands
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,10 +17,9 @@
 #  limitations under the License.
 
 import time
-from pathlib import Path
+from math import ceil
 
 import numpy as np
-import pandas as pd
 import torch
 import torch.nn.functional as F
 from picai_eval import Metrics
@@ -35,22 +33,24 @@ from src.picai_baseline.unet.training_setup.poly_lr import poly_lr
 def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
     """Optimize model x N training steps per epoch + update learning rate"""
 
-    train_loss, step = 0, 0
+    train_loss = 0.0
     start_time = time.time()
-    # epoch = tracking_metrics['epoch']
+    steps_done = 0
+    total_steps = ceil(train_gen.data_loader.get_data_length() / args.batch_size)
 
-    # for each mini-batch or optimization step
+    # 2) Take exactly steps_per_epoch batches from train_gen
     for batch_data in train_gen:
-        step += 1
-        try:
-            inputs = batch_data['data'].to(device)
-            labels = batch_data['seg'].to(device)
-        except Exception as e:
-            inputs = torch.from_numpy(batch_data['data']).to(device)
-            labels = torch.from_numpy(batch_data['seg']).to(device)
+        steps_done += 1
+        # unpack list→dict if needed
+        if isinstance(batch_data, list):
+            batch_data = {"data": batch_data[0], "seg": batch_data[1]}
 
+        # move to device
+        inputs = torch.as_tensor(batch_data["data"], device=device)
+        labels = torch.as_tensor(batch_data["seg"], device=device)
         labels = fix_labels_shape(args, labels)
 
+        # forward + loss
         outputs = model(inputs)
         loss = loss_func(outputs, labels)
         train_loss += loss.item()
@@ -60,24 +60,31 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
         loss.backward()
         optimizer.step()
 
-        # define each training epoch == 100 steps (note: nnU-Net uses 250 steps)
-        if step >= 250:
+        if steps_done == total_steps:
             break
 
-    # update learning rate
-    updated_lr = poly_lr(epoch + 1, args.num_train_epochs, args.base_lr, 0.95)
+    # 3) Update learning rate (your poly schedule)
+    updated_lr = poly_lr(
+        epoch + 1,
+        args.num_train_epochs,
+        args.base_lr,
+        min_lr=1e-6,  # a tiny floor
+        exponent=0.95  # your intended decay power
+    )
     optimizer.param_groups[0]['lr'] = updated_lr
-    print("Learning Rate Updated! New Value: " + str(np.round(updated_lr, 10)), flush=True)
+    print(f"Learning Rate Updated! New Value: {np.round(updated_lr, 10)}", flush=True)
 
-    # track training metrics
-    train_loss /= step
-    # tracking_metrics['train_loss'] = train_loss
-    # writer.add_scalar("train_loss", train_loss, epoch + 1)
+    # 4) Log epoch summary
+    avg_loss = train_loss / steps_done
+    elapsed = int(time.time() - start_time)
     print("-" * 100)
-    print(f"Epoch {epoch + 1}/{args.num_train_epochs} (Train. Loss: {train_loss:.4f}; \
-        Time: {int(time.time() - start_time)}sec; Steps Completed: {step})", flush=True)
+    print(
+        f"Epoch {epoch + 1}/{args.num_train_epochs} "
+        f"(Train. Loss: {avg_loss:.4f}; Time: {elapsed} sec; "
+        f"Steps: {steps_done})", flush=True
+    )
 
-    return model, optimizer, train_gen, train_loss
+    return model, optimizer, train_gen, avg_loss
 
 
 def fix_labels_shape(args, labels):
@@ -165,7 +172,6 @@ def validate_model(model, optimizer, loss_func, valid_gen, args, device):
     print(f"Valid. Performance [Benign or Indolent PCa (n={num_neg}) \
         vs. csPCa (n={num_pos})]:\nRanking Score = {valid_metrics.score:.3f},\
         AP = {valid_metrics.AP:.3f}, AUROC = {valid_metrics.auroc:.3f}", flush=True)
-
 
     best_f2, best_threshold = valid_metrics.F2
     best_f2_threshold = {"best_threshold": best_threshold, "best_f2": best_f2}

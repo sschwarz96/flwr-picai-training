@@ -3,6 +3,12 @@
 from flwr.client import ClientApp
 from flwr.server import ServerApp
 from flwr.simulation import run_simulation
+import torch.multiprocessing as mp
+
+try:
+    mp.set_start_method("spawn", force=True)   # or "forkserver"
+except RuntimeError:
+    pass  # start method was already set
 
 import torch
 
@@ -10,13 +16,15 @@ from src.picai_baseline.flwr.picai_client import client_fn
 from src.picai_baseline.flwr.picai_server import server_fn
 from src.picai_baseline.flwr.run_config import run_configuration
 
+
+
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-backend_config = {"client_resources": {"num_cpus": run_configuration.num_threads, "num_gpus": 1.0}}
+backend_config = {"client_resources": {"num_cpus": run_configuration.num_threads_clients, "num_gpus": 1.0}}
 
 # When running on GPU, assign an entire GPU for each client
 if DEVICE == "cuda":
     backend_config = {
-        "client_resources": {"num_cpus": run_configuration.num_threads, "num_gpus": run_configuration.num_gpus}}
+        "client_resources": {"num_cpus": run_configuration.num_threads_clients, "num_gpus": run_configuration.num_gpus}}
     # Refer to our Flower framework documentation for more details about Flower simulations
     # and how to set up the `backend_config`
 

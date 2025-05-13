@@ -129,6 +129,7 @@ def apply_augmentations(dataloader, params=default_3D_augmentation_params, patch
     # ----------------------------------------------------------------------------------------------------------------------------------------------------------------
     # multi-threaded augmenter (non-deterministic, if available)
     if use_multithreading and num_threads > 1:
+
         if use_nondetMultiThreadedAugmenter:
             if NonDetMultiThreadedAugmenter is None:
                 raise RuntimeError('NonDetMultiThreadedAugmenter is not yet available')
@@ -136,8 +137,8 @@ def apply_augmentations(dataloader, params=default_3D_augmentation_params, patch
                                                                 num_threads, seeds=seeds_train,
                                                                 pin_memory=pin_memory)
         else:
-            batchgenerator_train = MultiThreadedAugmenter(dataloader, tr_transforms, num_threads,
-                                                          num_threads, seeds=seeds_train, 
+            batchgenerator_train = MultiThreadedAugmenter(dataloader, tr_transforms, 1,
+                                                          seeds=seeds_train,
                                                           pin_memory=pin_memory)
     else:
         batchgenerator_train = SingleThreadedAugmenter(dataloader, tr_transforms)

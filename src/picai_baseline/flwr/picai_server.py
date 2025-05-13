@@ -39,7 +39,7 @@ def create_central_evaluation():
 
     # Load centralized test dataset
     # Note: You might want to use a specific fold or combine validation sets
-    _, test_loader, class_weights = load_datasets(fold_id=4)
+    _, test_loader, class_weights = load_datasets(fold_id=run_configuration.evaluation_fold)
 
     # Initialize model for evaluation
     net = neural_network_for_run(args=args, device=device)

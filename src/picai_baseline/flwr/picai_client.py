@@ -36,7 +36,7 @@ class PicaiFlowerCLient(NumPyClient):
         print(f"Device type: {type(self.device)}, Value: {self.device}")
         train(self.net, self.optimizer, self.loss_func, self.trainloader, self.args, self.device,
               config["local_epochs"])
-        return get_parameters(self.net), self.trainloader.generator.get_data_length(), {}
+        return get_parameters(self.net), self.trainloader.data_loader.get_data_length(), {}
 
     def evaluate(self, parameters, config):
         set_parameters(self.net, parameters)
@@ -69,21 +69,24 @@ def client_fn(context: Context) -> Client:
 
     trainloader, valloader, class_weights = load_datasets(fold_id=fold_id)
 
+    print(f"Valloader length: {valloader.get_data_length()}")
+
     train_gen = apply_augmentations(
         dataloader=trainloader,
-        num_threads=args.num_threads,
-        disable=(not bool(args.enable_da))
+        num_threads=run_configuration.num_threads_augmenting,
+        disable=(not bool(run_configuration.enable_da))
     )
 
-    # initialize multi-threaded augmenter in background
-    train_gen.restart()
+    if run_configuration.num_threads_augmenting > 1:
+        # initialize multi-threaded augmenter in background
+        train_gen.restart()
 
     # Load model
     net = neural_network_for_run(args=args, device=device)
 
     # loss function + optimizer
     loss_func = FocalLoss(alpha=class_weights[-1], gamma=args.focal_loss_gamma).to(device)
-    optimizer = torch.optim.Adam(params=net.parameters(), lr=args.base_lr, amsgrad=True)
+    optimizer = torch.optim.Adam(params=net.parameters(), lr=args.base_lr, amsgrad=True, weight_decay=1e-4)
 
     # Create a single Flower client representing a single organization
     # FlowerClient is a subclass of NumPyClient, so we need to call .to_client()

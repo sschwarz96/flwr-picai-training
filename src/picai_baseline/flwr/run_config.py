@@ -12,25 +12,26 @@ class RunConfig:
         self.image_shape = [16, 128, 128]  # (z, y, x)
         self.num_channels = 3
         self.num_classes = 2
-        self.base_lr = 0.002
-        self.focal_loss_gamma = 1.0
-        self.enable_da = 1  # Data Augmentation
+        self.base_lr = 0.00075 # 0.002
+        self.focal_loss_gamma = 1.0 # 1.0
+        self.enable_da = True  # Data Augmentation
         self.random_seed = 42  # For reproducibility
 
         # Neural Network-Specific Hyperparameters
         self.model_type = "unet"
         self.model_strides = [(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]
         self.model_features = [32, 64, 128, 256, 512, 1024]
-        self.batch_size = 3
+        self.batch_size = 8
         self.use_def_model_hp = 1
 
         # Federated Learning Config
-        self.num_train_epochs = 4
+        self.num_train_epochs = 2
         self.central_evaluation = True
         self.num_clients = 3
-        self.num_rounds = 25
+        self.num_rounds = 50
         self.num_gpus = 1.0
-        self.num_threads = 3
+        self.num_threads_clients = 3
+        self.num_threads_augmenting = 1
         self.fraction_fit = 1.0
         self.evaluate_fit = 0.0 if self.central_evaluation else 1.0
         self.folds = [0, 1, 2] if self.central_evaluation else [0, 1, 2, 3, 4]

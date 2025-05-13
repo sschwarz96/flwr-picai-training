@@ -49,8 +49,23 @@ def producer(queue, data_loader, transform, thread_id, seed, abort_event, wait_t
                     except StopIteration:
                         item = "end"
 
+                if isinstance(item, dict):
+                    cpu_item = {}
+                    for k, v in item.items():
+                        if isinstance(v, torch.Tensor) and v.is_cuda:
+                            # Move to CPU before putting on queue
+                            cpu_item[k] = v.cpu()
+                        else:
+                            cpu_item[k] = v
+                    processed_item = cpu_item
+                elif isinstance(item, torch.Tensor) and item.is_cuda:
+                    processed_item = item.cpu()
+                else:
+                    # Handle other types or tuples if necessary
+                    processed_item = item
+
                 if not queue.full():
-                    queue.put(item)
+                    queue.put(processed_item)
                     item = None
                 else:
                     sleep(wait_time)
