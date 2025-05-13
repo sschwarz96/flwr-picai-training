@@ -174,7 +174,7 @@ class MultiThreadedAugmenter(object):
         else:
             seeds = [None] * num_processes
         self.seeds = seeds
-        self.generator = data_loader
+        self.data_loader = data_loader
         self.num_processes = num_processes
         self.num_cached_per_queue = num_cached_per_queue
         self._queues = []
@@ -246,14 +246,14 @@ class MultiThreadedAugmenter(object):
             self._queue_ctr = 0
             self._end_ctr = 0
 
-            if hasattr(self.generator, 'was_initialized'):
-                self.generator.was_initialized = False
+            if hasattr(self.data_loader, 'was_initialized'):
+                self.data_loader.was_initialized = False
 
             with threadpool_limits(limits=1, user_api="blas"):
                 for i in range(self.num_processes):
                     self._queues.append(Queue(self.num_cached_per_queue))
                     self._processes.append(Process(target=producer, args=(
-                        self._queues[i], self.generator, self.transform, i, self.seeds[i], self.abort_event)))
+                        self._queues[i], self.data_loader, self.transform, i, self.seeds[i], self.abort_event)))
                     self._processes[-1].daemon = True
                     self._processes[-1].start()
 

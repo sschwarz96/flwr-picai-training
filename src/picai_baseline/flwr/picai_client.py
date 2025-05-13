@@ -1,3 +1,4 @@
+import gc
 import random
 from random import randint
 
@@ -50,7 +51,8 @@ class PicaiFlowerCLient(NumPyClient):
 
 def client_fn(context: Context) -> Client:
     """Create a Flower client representing a single organization."""
-
+    gc.collect()
+    torch.cuda.empty_cache()
     # Load data (CIFAR-10)
     # Note: each client gets a different trainloader/valloader, so each client
     # will train and evaluate on their own unique data partition

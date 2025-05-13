@@ -31,7 +31,7 @@ class RunConfig:
         self.num_rounds = 50
         self.num_gpus = 1.0
         self.num_threads_clients = 3
-        self.num_threads_augmenting = 1
+        self.num_threads_augmenting = 2
         self.fraction_fit = 1.0
         self.evaluate_fit = 0.0 if self.central_evaluation else 1.0
         self.folds = [0, 1, 2] if self.central_evaluation else [0, 1, 2, 3, 4]
