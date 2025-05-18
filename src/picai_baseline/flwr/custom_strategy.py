@@ -4,7 +4,6 @@ from logging import INFO
 from pathlib import Path
 from typing import Optional, Union
 
-import numpy as np
 import torch
 
 from flwr.common import logger, parameters_to_ndarrays, EvaluateRes
@@ -13,7 +12,7 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedAvg
 
 from src.picai_baseline.flwr.federated_training_methods import set_parameters
-from src.picai_baseline.flwr.run_config import run_configuration
+from src.picai_baseline.flwr.run_config import run_configuration, RunConfig
 from src.picai_baseline.unet.training_setup.neural_network_selector import neural_network_for_run
 
 PROJECT_NAME = "FLOWER-advanced-pytorch"
@@ -135,10 +134,11 @@ def create_run_dir(config: UserConfig) -> tuple[Path, str]:
     # Save path is based on the current directory
     save_path = Path.cwd() / f"outputs/{run_dir}"
     save_path.mkdir(parents=True, exist_ok=False)
+    current_config = RunConfig()
 
     # Save run config as json
     with open(f"{save_path}/run_config.json", "w", encoding="utf-8") as fp:
-        json.dump(config, fp)
+        json.dump(current_config.to_dict(), fp)
 
     return save_path, run_dir
 

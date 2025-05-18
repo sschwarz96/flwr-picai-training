@@ -1,4 +1,3 @@
-import os
 import types
 
 import torch
@@ -129,6 +128,7 @@ def client_fn(context: Context) -> Client:
     optimizer = torch.optim.Adam(params=net.parameters(), lr=run_configuration.base_lr, amsgrad=True, weight_decay=1e-4)
 
     current_epsilon = run_configuration.epsilon
+    print(f"CURRENT EPSILON {current_epsilon}")
     if dp_state_manager.exists(partition_id):
         restored = dp_state_manager.load(partition_id)
         privacy_engine.accountant = restored

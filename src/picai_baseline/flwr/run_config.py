@@ -1,46 +1,34 @@
 import json
+from pathlib import Path
 
 
 class RunConfig:
-    def __init__(self):
-        # Data I/O + Experimental Setup
-        self.validate_n_epochs = 1
-        self.resume_training = 0
-        self.overviews_dir = "/home/zimon/picai_baseline/workdir/results/UNet/overviews/Task2203_picai_baseline"
+    def __init__(
+            self,
+            filepath: str = "/home/zimon/flwr-picai-training/src/picai_baseline/flwr/run_config.json",
+            **overrides,
+    ):
+        """
+        Load all config fields from the given JSON file, then apply any overrides.
 
-        # Training Hyperparameters
-        self.image_shape = [16, 128, 128]  # (z, y, x)
-        self.num_channels = 3
-        self.num_classes = 2
-        self.base_lr = 0.0002 # 0.002
-        self.focal_loss_gamma = 1.0 # 1.0
-        self.enable_da = False  # Data Augmentation
-        self.random_seed = 42  # For reproducibility
+        :param filepath: Path to your JSON config.
+        :param overrides: Any config keys you want to override at init.
+                          E.g. RunConfig(epsilon=1.0) will set self.epsilon = 1.0
+        """
 
-        # Neural Network-Specific Hyperparameters
-        self.model_type = "unet"
-        self.model_strides = [(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]
-        self.model_features = [32, 64, 128, 256, 512, 1024]
-        self.virtual_batch_size = 10
-        self.physical_batch_size = 10
 
-        # Federated Learning Config
-        self.num_train_epochs = 2
-        self.central_evaluation = True
-        self.num_clients = 3
-        self.num_rounds = 40
-        self.num_gpus = 1.0
-        self.num_threads_clients = 3
-        self.num_threads_augmenting = 2
-        self.fraction_fit = 1.0
-        self.evaluate_fit = 0.0 if self.central_evaluation else 1.0
-        self.folds = [0, 1, 2] if self.central_evaluation else [0, 1, 2, 3, 4]
-        self.evaluation_fold = 3 if self.central_evaluation else None
+        # 1) Load JSON into this instance
+        with open(filepath, "r") as f:
+            data = json.load(f)
 
-        # Privacy related
-        self.epsilon = 15
-        self.delta = 1e-5
-        self.max_grad_norm = 1.5
+        for key, val in data.items():
+            setattr(self, key, val)
+
+        # 2) Apply overrides
+        for key, val in overrides.items():
+            setattr(self, key, val)
+
+        print(f"SELLFF {self}")
 
     def to_dict(self):
         """Convert the class attributes to a dictionary for JSON serialization."""

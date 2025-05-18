@@ -1,0 +1,72 @@
+{
+    "validate_n_epochs": 1,
+    "resume_training": 0,
+    "overviews_dir": "/home/zimon/picai_baseline/workdir/results/UNet/overviews/Task2203_picai_baseline",
+    "image_shape": [
+        16,
+        128,
+        128
+    ],
+    "num_channels": 3,
+    "num_classes": 2,
+    "base_lr": 0.0002,
+    "focal_loss_gamma": 1.0,
+    "enable_da": true,
+    "random_seed": 42,
+    "model_type": "unet",
+    "model_strides": [
+        [
+            2,
+            2,
+            2
+        ],
+        [
+            1,
+            2,
+            2
+        ],
+        [
+            1,
+            2,
+            2
+        ],
+        [
+            1,
+            2,
+            2
+        ],
+        [
+            2,
+            2,
+            2
+        ]
+    ],
+    "model_features": [
+        32,
+        64,
+        128,
+        256,
+        512,
+        1024
+    ],
+    "virtual_batch_size": 10,
+    "physical_batch_size": 10,
+    "num_train_epochs": 2,
+    "central_evaluation": true,
+    "num_clients": 3,
+    "num_rounds": 40,
+    "num_gpus": 1.0,
+    "num_threads_clients": 3,
+    "num_threads_augmenting": 2,
+    "fraction_fit": 1.0,
+    "evaluate_fit": 0.0,
+    "folds": [
+        0,
+        1,
+        2
+    ],
+    "evaluation_fold": 3,
+    "epsilon": 30,
+    "delta": 1e-05,
+    "max_grad_norm": 1.5
+}
