@@ -28,9 +28,10 @@ client = ClientApp(client_fn=client_fn)
 
 print(f"Total GPUs detected: {torch.cuda.device_count()}")
 # Run simulation
-run_simulation(
-    server_app=server,
-    client_app=client,
-    num_supernodes=run_configuration.num_clients,
-    backend_config=backend_config,
-)
+for x in range(1):
+    run_simulation(
+        server_app=server,
+        client_app=client,
+        num_supernodes=run_configuration.num_clients,
+        backend_config=backend_config,
+    )
