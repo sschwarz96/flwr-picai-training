@@ -132,7 +132,7 @@ def prepare_datagens(args, fold_id):
                                       infinite=True,
                                       shuffle=True)
     valid_ldr = DataLoaderFromDataset(valid_ds,
-                                      batch_size=args.batch_size, num_threads=run_configuration.num_threads_clients, infinite=False,
+                                      batch_size=args.batch_size, num_threads=1, infinite=False,
                                       shuffle=False)
 
     return train_ldr, valid_ldr, class_weights.astype(np.float32)

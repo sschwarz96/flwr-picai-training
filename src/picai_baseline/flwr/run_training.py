@@ -16,6 +16,8 @@ from src.picai_baseline.flwr.picai_client import client_fn
 from src.picai_baseline.flwr.picai_server import server_fn
 from src.picai_baseline.flwr.run_config import run_configuration
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="sklearn.metrics._ranking")
 
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -33,9 +35,10 @@ client = ClientApp(client_fn=client_fn)
 
 print(f"Total GPUs detected: {torch.cuda.device_count()}")
 # Run simulation
-run_simulation(
-    server_app=server,
-    client_app=client,
-    num_supernodes=run_configuration.num_clients,
-    backend_config=backend_config,
-)
+for i in range(3):
+    run_simulation(
+        server_app=server,
+        client_app=client,
+        num_supernodes=run_configuration.num_clients,
+        backend_config=backend_config,
+    )

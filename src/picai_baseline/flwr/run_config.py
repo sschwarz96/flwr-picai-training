@@ -6,7 +6,7 @@ class RunConfig:
         # Data I/O + Experimental Setup
         self.validate_n_epochs = 1
         self.resume_training = 0
-        self.overviews_dir = "/home/zimon/picai_baseline/workdir/results/UNet/overviews/Task2203_picai_baseline"
+        self.overviews_dir = "/home/zimon/flwr-picai-training/workdir/results/UNet/overviews/Task2203_picai_baseline"
 
         # Training Hyperparameters
         self.image_shape = [16, 128, 128]  # (z, y, x)
@@ -14,7 +14,7 @@ class RunConfig:
         self.num_classes = 2
         self.base_lr = 0.0002 # 0.002
         self.focal_loss_gamma = 1.0 # 1.0
-        self.enable_da = True  # Data Augmentation
+        self.enable_da = False  # Data Augmentation
         self.random_seed = 42  # For reproducibility
 
         # Neural Network-Specific Hyperparameters

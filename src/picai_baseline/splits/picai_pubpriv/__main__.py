@@ -1,5 +1,5 @@
-from picai_baseline.splits import export_splits
-from picai_baseline.splits.picai_pubpriv import (nnunet_splits, train_splits,
+from src.picai_baseline.splits import export_splits
+from src.picai_baseline.splits.picai_pubpriv import (nnunet_splits, train_splits,
                                                  valid_splits)
 
 if __name__ == "__main__":
