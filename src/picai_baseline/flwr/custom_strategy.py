@@ -33,6 +33,7 @@ class CustomFedAvg(FedAvg):
         self.save_path, self.run_dir = create_run_dir(run_config)
         # Keep track of best acc
         self.best_ranking_so_far = 0.0
+        self.best_ap = 0.0
         # A dictionary to store results as they come
         self.results = {}
         # Store latest params
@@ -53,13 +54,14 @@ class CustomFedAvg(FedAvg):
         with open(f"{self.save_path}/results.json", "w", encoding="utf-8") as fp:
             json.dump(self.results, fp)
 
-    def _update_best_ranking(self, round, ranking):
+    def _update_best_ranking(self, round, ranking, ap):
         """Determines if a new best global model has been found.
 
         If so, the model checkpoint is saved to disk.
         """
-        if ranking > self.best_ranking_so_far:
+        if ranking > self.best_ranking_so_far or ap > self.best_ap:
             self.best_ranking_so_far = ranking
+            self.best_ap = ap
             logger.log(INFO, "💡 New best global model found: %f", ranking)
             # You could save the parameters object directly.
             # Instead we are going to apply them to a PyTorch
@@ -87,7 +89,7 @@ class CustomFedAvg(FedAvg):
         if server_round == 0 and not run_configuration.resume_training:
             return None
         loss, metrics = super().evaluate(server_round=server_round, parameters=parameters)
-        self._update_best_ranking(server_round, metrics["ranking"])
+        self._update_best_ranking(server_round, metrics["ranking"], metrics['average_precision'])
 
         self.store_results_and_log(
             server_round=server_round,
@@ -140,4 +142,3 @@ def create_run_dir(config: UserConfig) -> tuple[Path, str]:
         json.dump(config, fp)
 
     return save_path, run_dir
-

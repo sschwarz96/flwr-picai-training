@@ -152,7 +152,7 @@ def client_fn(context: Context) -> Client:
         print(f"[Client {partition_id}] ✅ Accountant fully restored with {len(restored)} steps")
         current_epsilon = current_epsilon - privacy_engine.accountant.get_epsilon(delta=run_configuration.delta)
 
-    adaptive_clip = dp_state_manager.get_adaptive_clip_value(partition_id, quantile="median", factor=1.0)
+    adaptive_clip = dp_state_manager.get_adaptive_clip_value(partition_id, factor=1.0)
     if adaptive_clip is not None:
         run_configuration.max_grad_norm = adaptive_clip  # override before make_private_with_epsilon
     else:

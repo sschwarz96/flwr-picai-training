@@ -5,6 +5,7 @@ import torch
 import json
 from opacus.accountants import RDPAccountant
 
+
 class DPStateManager:
     def __init__(self, storage_dir: Path = None):
         if storage_dir is None:
@@ -38,14 +39,14 @@ class DPStateManager:
 
     # ----- Adaptive clipping section -----
     def log_grad_norms(
-        self,
-        participant_id: int,
-        round_idx: int,
-        median_norm: float,
-        p90_norm: float,
-        mean_norm: float = None,
-        min_norm: float = None,
-        max_norm: float = None,
+            self,
+            participant_id: int,
+            round_idx: int,
+            median_norm: float,
+            p90_norm: float,
+            mean_norm: float = None,
+            min_norm: float = None,
+            max_norm: float = None,
     ) -> None:
         """Append gradient norm stats for this round to a log file."""
         log_path = self._gradnorm_log_path(participant_id)
@@ -75,7 +76,8 @@ class DPStateManager:
             return None
         return json.loads(lines[-1])
 
-    def get_adaptive_clip_value(self, participant_id: int, quantile: str = "p90", factor: float = 1.0) -> float | None:
+    def get_adaptive_clip_value(self, participant_id: int, quantile: str = "median",
+                                factor: float = 1.0) -> float | None:
         """Return the adaptive clip norm based on latest recorded stats.
         Args:
             quantile: "median", "p90", "mean", etc.
@@ -84,6 +86,8 @@ class DPStateManager:
         stats = self.get_latest_grad_norms(participant_id)
         if stats is None or quantile not in stats:
             return None
+        if stats[quantile] <= 0.3:
+            return float(stats["p90"]) * factor
         return float(stats[quantile]) * factor
 
     def reset_grad_norm_log(self, participant_id: int):

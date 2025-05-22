@@ -14,7 +14,7 @@ class RunConfig:
         self.num_classes = 2
         self.base_lr = 0.0002 # 0.002
         self.focal_loss_gamma = 1.0 # 1.0
-        self.enable_da = True  # Data Augmentation
+        self.enable_da = False  # Data Augmentation
         self.random_seed = 42  # For reproducibility
 
         # Neural Network-Specific Hyperparameters
@@ -38,7 +38,7 @@ class RunConfig:
         self.evaluation_fold = 3 if self.central_evaluation else None
 
         # Privacy related
-        self.epsilon = 100
+        self.epsilon = 3
         self.delta = 1e-5
         self.max_grad_norm = 2.5
 
