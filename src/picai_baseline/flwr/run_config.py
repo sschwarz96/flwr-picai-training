@@ -6,7 +6,7 @@ class RunConfig:
         # Data I/O + Experimental Setup
         self.validate_n_epochs = 1
         self.resume_training = 0
-        self.overviews_dir = "/home/zimon/picai_baseline/workdir/results/UNet/overviews/Task2203_picai_baseline"
+        self.overviews_dir = "/home/zimon/flwr-picai-training/workdir/results/UNet/overviews/Task2203_picai_baseline"
 
         # Training Hyperparameters
         self.image_shape = [16, 128, 128]  # (z, y, x)
@@ -38,9 +38,9 @@ class RunConfig:
         self.evaluation_fold = 3 if self.central_evaluation else None
 
         # Privacy related
-        self.epsilon = 5
+        self.epsilon = 100
         self.delta = 1e-5
-        self.max_grad_norm = 1.5
+        self.max_grad_norm = 2.5
 
     def to_dict(self):
         """Convert the class attributes to a dictionary for JSON serialization."""
