@@ -1,7 +1,7 @@
 {
     "validate_n_epochs": 1,
     "resume_training": 0,
-    "overviews_dir": "/home/zimon/picai_baseline/workdir/results/UNet/overviews/Task2203_picai_baseline",
+    "overviews_dir": "/home/zimon/flwr-picai-training/workdir/results/UNet/overviews/Task2203_picai_baseline",
     "image_shape": [
         16,
         128,
@@ -11,7 +11,7 @@
     "num_classes": 2,
     "base_lr": 0.0002,
     "focal_loss_gamma": 1.0,
-    "enable_da": true,
+    "enable_da": false,
     "random_seed": 42,
     "model_type": "unet",
     "model_strides": [
