@@ -40,7 +40,7 @@ class RunConfig:
         # Privacy related
         self.epsilon = 100
         self.delta = 1e-5
-        self.max_grad_norm = 2.5
+        self.max_grad_norm = 1.0
 
     def to_dict(self):
         """Convert the class attributes to a dictionary for JSON serialization."""
