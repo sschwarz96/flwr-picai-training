@@ -1,4 +1,6 @@
-import os
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 import types
 
 import torch
@@ -60,12 +62,24 @@ class PicaiFlowerClient(NumPyClient):
         return dataset_length
 
     def fit(self, parameters, config):
+        round_idx = config.get("current_round", 0)
         print(f"Partition id {self.partition_id}")
         eps_before, _ = self.privacy_engine.accountant.get_privacy_spent(delta=self.args.delta)
         print(f"[Client {self.partition_id}] ▷ Before this round, cumulative ε = {eps_before:.4f}")
         set_parameters(self.net, parameters)
-        train(self.net, self.optimizer, self.loss_func, self.trainloader, self.args, self.device,
+        _, all_norms = train(self.net, self.optimizer, self.loss_func, self.trainloader, self.args, self.device,
               config["local_epochs"])
+
+        # store current norms
+        if all_norms is not None and all_norms.numel() > 0:
+            median_norm = all_norms.median().item()
+            p90_norm = torch.quantile(all_norms, 0.9).item()
+            max_norm = torch.max(all_norms).item()
+            mean_norm = torch.mean(all_norms).item()
+            min_norm = torch.min(all_norms).item()
+            self.dp_state_manager.log_grad_norms(
+                self.partition_id, round_idx, median_norm, p90_norm, mean_norm, min_norm, max_norm
+            )
 
         # 3) Query the Opacus accountant for spent ε (and α)
         #    Make sure to use the same δ you chose in your RunConfig
@@ -138,13 +152,21 @@ def client_fn(context: Context) -> Client:
         print(f"[Client {partition_id}] ✅ Accountant fully restored with {len(restored)} steps")
         current_epsilon = current_epsilon - privacy_engine.accountant.get_epsilon(delta=run_configuration.delta)
 
+    adaptive_clip = dp_state_manager.get_adaptive_clip_value(partition_id, quantile="median", factor=1.0)
+    if adaptive_clip is not None:
+        run_configuration.max_grad_norm = adaptive_clip  # override before make_private_with_epsilon
+    else:
+        adaptive_clip = run_configuration.max_grad_norm
+
+    print(f"Adaptive clip value is {adaptive_clip}")
+
     net, private_optimizer, private_train_loader = privacy_engine.make_private_with_epsilon(module=net,
                                                                                             optimizer=optimizer,
                                                                                             data_loader=train_data_loader,
                                                                                             target_epsilon=current_epsilon,
                                                                                             target_delta=run_configuration.delta,
                                                                                             epochs=run_configuration.num_train_epochs * run_configuration.num_rounds,
-                                                                                            max_grad_norm=run_configuration.max_grad_norm,
+                                                                                            max_grad_norm=adaptive_clip,
                                                                                             grad_sample_mode="functorch"
                                                                                             )
 

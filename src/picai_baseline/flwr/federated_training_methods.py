@@ -31,13 +31,16 @@ def get_parameters(net) -> List[np.ndarray]:
 def train(model, optimizer, loss_func, train_gen, arguments, device,
           training_epochs):
     train_loss = np.inf
+    norms =[]
     for i in range(training_epochs):
         model.train()
-        model, optimizer, train_gen, train_loss = optimize_model(
+        model, optimizer, train_gen, train_loss, all_norms = optimize_model(
             model=model, optimizer=optimizer, loss_func=loss_func, train_gen=train_gen,
             args=arguments, device=device, epoch=i
         )
-    return train_loss
+        norms.append(all_norms)
+    norms = torch.cat(norms)
+    return train_loss,norms
 
 
 def test(model, optimizer, loss_func, valid_gen, arguments, device):

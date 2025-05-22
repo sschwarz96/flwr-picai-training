@@ -4,7 +4,6 @@ from logging import INFO
 from pathlib import Path
 from typing import Optional, Union
 
-import numpy as np
 import torch
 
 from flwr.common import logger, parameters_to_ndarrays, EvaluateRes

@@ -26,53 +26,20 @@ from picai_eval import Metrics
 from picai_eval.eval import evaluate_case
 from report_guided_annotation import extract_lesion_candidates
 from scipy.ndimage import gaussian_filter
-from torch.cuda.amp import autocast, GradScaler
-
 from src.picai_baseline.unet.training_setup.poly_lr import poly_lr
 
 
-def compute_per_sample_grad_norms_loop(model, inputs, labels, loss_func, device):
-    """
-    Returns a tensor of shape (B,) with the L2 norm of the gradient
-    of loss w.r.t. model parameters for each example in the batch.
-    """
-    model.zero_grad()
-    per_sample_norms = []
-
-    for i in range(inputs.size(0)):
-        x_i = inputs[i : i+1].to(device)   # (1, C, ...)
-        y_i = labels[i : i+1].to(device)   # (1, num_classes, ...)
-
-        # forward + loss
-        out_i = model(x_i)
-        loss_i = loss_func(out_i, y_i)
-
-        # compute gradients for this sample
-        grads = torch.autograd.grad(
-            loss_i,
-            [p for p in model.parameters() if p.requires_grad],
-            retain_graph=True,
-            create_graph=False
-        )
-
-        # flatten and compute L2 norm
-        sq_sum = torch.stack([g.detach().pow(2).sum() for g in grads]).sum()
-        per_sample_norms.append(sq_sum.sqrt())
-
-        model.zero_grad()  # clear before next sample
-
-    return torch.stack(per_sample_norms)  # shape: (B,)
 
 def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
     """Optimize model over exactly N DP‐correct noisy‐updates per epoch + update LR"""
-
-
-
     steps_per_epoch = len(train_gen.generator)
 
     train_loss = 0.0
     start_time = time.time()
 
+    params = [p for p in model.parameters() if p.requires_grad]
+
+    all_norms = []
     # 2) Take exactly steps_per_epoch batches from train_gen
     for batch_data in itertools.islice(train_gen, steps_per_epoch):
         # unpack list→dict if needed
@@ -84,10 +51,6 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
         labels = torch.as_tensor(batch_data["seg"], device=device)
         labels = fix_labels_shape(args, labels)
 
-        per_sample_norms = compute_per_sample_grad_norms_loop(model, inputs, labels, loss_func, device)
-        print("median norm:", per_sample_norms.median().item())
-        print("90th percentile:", torch.quantile(per_sample_norms, 0.9).item())
-
         # forward + loss
         outputs = model(inputs)
         loss = loss_func(outputs, labels)
@@ -96,6 +59,17 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
         # backward + DP step
         optimizer.zero_grad()
         loss.backward()
+        sq = None
+        for p in params:
+            if not hasattr(p, "grad_sample"):
+                continue
+            g = p.grad_sample  # shape (B, *p.shape)
+            g_flat = g.reshape(g.shape[0], -1)
+            this_sq = (g_flat * g_flat).sum(dim=1)
+            sq = this_sq if sq is None else sq + this_sq
+
+        per_sample_norms = torch.sqrt(sq)
+        all_norms.append(per_sample_norms.cpu())
         optimizer.step()
 
     # 3) Update learning rate (your poly schedule)
@@ -106,6 +80,9 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
         min_lr=1e-6,  # a tiny floor
         exponent=0.95  # your intended decay power
     )
+
+    all_norms = torch.cat(all_norms)
+
     optimizer.param_groups[0]['lr'] = updated_lr
     print(f"Learning Rate Updated! New Value: {np.round(updated_lr, 10)}", flush=True)
 
@@ -119,7 +96,7 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
         f"Steps: {steps_per_epoch})", flush=True
     )
 
-    return model, optimizer, train_gen, avg_loss
+    return model, optimizer, train_gen, avg_loss, all_norms
 
 
 def fix_labels_shape(args, labels):

@@ -1,5 +1,8 @@
 # Specify the resources each of your clients need
 # By default, each client will be allocated 1x CPU and 0x GPUs
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 from flwr.client import ClientApp
 from flwr.server import ServerApp
 from flwr.simulation import run_simulation
@@ -10,7 +13,7 @@ from src.picai_baseline.flwr.picai_client import client_fn
 from src.picai_baseline.flwr.picai_server import server_fn
 from src.picai_baseline.flwr.run_config import run_configuration
 
-import os
+
 
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
