@@ -13,7 +13,10 @@
 #    limitations under the License.
 
 
-def poly_lr(epoch, max_epochs, initial_lr, exponent=0.9):
-    """Polynomial learning rate schedule"""
-
-    return initial_lr * (1 - epoch / max_epochs)**exponent
+def poly_lr(epoch, max_epochs, initial_lr, exponent=0.9, min_lr=1e-6):
+    """
+    Polynomial decay from initial_lr → min_lr over max_epochs.
+    epoch is 1-indexed here.
+    """
+    decay = (1 - epoch / max_epochs) ** exponent
+    return min_lr + (initial_lr - min_lr) * decay
