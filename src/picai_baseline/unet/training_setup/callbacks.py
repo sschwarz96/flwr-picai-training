@@ -87,12 +87,12 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
     return model, optimizer, train_gen, avg_loss
 
 
-def fix_labels_shape(args, labels):
+def fix_labels_shape(labels):
     # bugfix for shape of targets
     if labels.shape[1] == 1:
         # labels now has shape (B, 1, D, H, W)
         labels = labels[:, 0, ...]  # shape: (B, D, H, W)
-        labels = F.one_hot(labels.long(), num_classes=args.num_classes).float()  # shape: (B, D, H, W, C)
+        labels = F.one_hot(labels.long(), num_classes=2).float()  # shape: (B, D, H, W, C)
         # reshape to (B, C, D, H, W)
         labels = labels.permute(0, 4, 1, 2, 3).contiguous()
     return labels

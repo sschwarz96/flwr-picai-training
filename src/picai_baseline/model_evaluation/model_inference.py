@@ -34,10 +34,9 @@ from report_guided_annotation import extract_lesion_candidates
 from scipy.ndimage import gaussian_filter
 
 WEIGHTS_FILE = Path(
-    "/home/zimon/flwr-picai-training/src/picai_baseline/flwr/outputs/2025-02-23/15-31-47/model_state_rank_0.6518681856663044_round_20.pth")
-PATIENT_ID = "10032"
+    "/home/zimon/flwr-picai-training/outputs/final_results/no_DP_DA_enabled/13-02-43/model_state_rank_0.45067658670752464_round_28.pth")
+PATIENT_ID = "10088"
 PATIENT = Path(f"/home/zimon/flwr-picai-training/input/images/{PATIENT_ID}")
-
 
 
 class csPCaAlgorithm(SegmentationAlgorithm):
@@ -120,7 +119,7 @@ class csPCaAlgorithm(SegmentationAlgorithm):
 
         # define input data specs [image shape, spatial res, num channels, num classes]
         self.img_spec = {
-            'image_shape': [20, 256, 256],
+            'image_shape': [16, 128, 128],
             'spacing': [3.0, 0.5, 0.5],
             'num_channels': 3,
             'num_classes': 2,
