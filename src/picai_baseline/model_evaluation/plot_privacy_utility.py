@@ -24,7 +24,7 @@ for jpath in RESULTS_DIR.rglob("inference_results.json"):
     # walk up until we find an epsilonX or no_DP folder
     eps = None
     for p in jpath.parents:
-        if m := re.match(r"epsilon(\d+)", p.name):
+        if m := re.match(r"epsilon(\d+)_DA", p.name):
             eps = int(m.group(1))
             break
         if p.name.startswith("no_DP"):
@@ -67,10 +67,9 @@ ax.set_xticks(xpos)
 ax.set_xticklabels(labels)
 ax.set_xlabel("Privacy budget ε")
 ax.set_ylabel("Average Precision")
-ax.set_ylim(grp["mean"].min()*0.8, grp["mean"].max()*1.2)
-ax.yaxis.set_major_formatter(
-    plt.FuncFormatter(lambda y, _: f"{y:.2e}")
-)
+ax.set_yscale("log")
+ax.set_ylim(1e-5, 1)
+ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda y, _: f"{y:.0e}"))
 ax.grid(True, ls="--", lw=0.4)
 
 # annotate
@@ -81,6 +80,6 @@ for xi, (m, s) in enumerate(zip(grp["mean"], grp["std"])):
                 ha="center", fontsize=8)
 
 plt.tight_layout()
-out = RESULTS_DIR / "AP_vs_epsilon_linear.png"
+out = RESULTS_DIR / "AP_vs_epsilon_linear_DA.png"
 fig.savefig(out, dpi=300)
 print(f"✅ Saved → {out}")
