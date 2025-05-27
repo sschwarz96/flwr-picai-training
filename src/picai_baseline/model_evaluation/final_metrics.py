@@ -188,8 +188,8 @@ def evaluate_on_generator(model, test_gen, loss_func, args, device):
 
 
 def main():
-    weights = find_highest_rank_pth_paths(Path('/home/zimon/flwr-picai-training/outputs/final_results/testset'))
-    folders = os.listdir('/home/zimon/flwr-picai-training/outputs/final_results/testset')
+    weights = find_highest_rank_pth_paths(Path('/home/zimon/flwr-picai-training/outputs/final_results/DA'))
+    folders = os.listdir('/home/zimon/flwr-picai-training/outputs/final_results/DA')
 
     with open(
             '/home/zimon/flwr-picai-training/workdir/results/UNet/overviews/Task2203_picai_baseline/PI-CAI_val-fold-4.json',
@@ -219,7 +219,7 @@ def main():
         print("\nFinal test‑fold metrics (metric units):")
         print(json.dumps(metrics, indent=2))
 
-        output_file = Path('/home/zimon/flwr-picai-training/outputs/final_results/testset') / folder / 'inference_results.json'
+        output_file = Path('/home/zimon/flwr-picai-training/outputs/final_results/DA') / folder / 'inference_results.json'
 
         if output_file is not None:
             with open(output_file, "w") as fp:
