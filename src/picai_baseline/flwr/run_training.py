@@ -14,7 +14,7 @@ from src.picai_baseline.flwr.picai_server import server_fn
 from src.picai_baseline.flwr.run_config import run_configuration
 
 config_path = Path('/home/zimon/flwr-picai-training/src/picai_baseline/flwr/run_config.json')
-EPSILON = [3, 5, 10, 20, 30]
+EPSILON = [20, 30, 20, 30]
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 backend_config = {"client_resources": {"num_cpus": run_configuration.num_threads_clients, "num_gpus": 0}}
@@ -38,6 +38,9 @@ for x in range(len(EPSILON)):
         data = json.load(f)
 
     data['epsilon'] = EPSILON[x]  # or any other update
+
+    if x == 2:
+        data['enable_da'] = False
 
     with open(config_path, 'w') as f:
         json.dump(data, f, indent=4)

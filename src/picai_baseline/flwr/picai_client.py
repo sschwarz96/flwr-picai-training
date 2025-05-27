@@ -126,8 +126,7 @@ def client_fn(context: Context) -> Client:
     # loss function + optimizer
     loss_func = FocalLoss(
         alpha=class_weights[-1],
-        gamma=run_configuration.focal_loss_gamma,
-        reduction='mean').to(device)
+        gamma=run_configuration.focal_loss_gamma).to(device)
     optimizer = torch.optim.Adam(params=net.parameters(), lr=run_configuration.base_lr, amsgrad=True, weight_decay=1e-4)
 
     current_epsilon = run_configuration.epsilon

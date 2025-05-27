@@ -40,8 +40,8 @@ def compute_per_sample_grad_norms_loop(model, inputs, labels, loss_func, device)
     per_sample_norms = []
 
     for i in range(inputs.size(0)):
-        x_i = inputs[i : i+1].to(device)   # (1, C, ...)
-        y_i = labels[i : i+1].to(device)   # (1, num_classes, ...)
+        x_i = inputs[i: i + 1].to(device)  # (1, C, ...)
+        y_i = labels[i: i + 1].to(device)  # (1, num_classes, ...)
 
         # forward + loss
         out_i = model(x_i)
@@ -63,12 +63,13 @@ def compute_per_sample_grad_norms_loop(model, inputs, labels, loss_func, device)
 
     return torch.stack(per_sample_norms)  # shape: (B,)
 
+
 def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
     """Optimize model over exactly N DP‐correct noisy‐updates per epoch + update LR"""
 
-
-
     steps_per_epoch = len(train_gen.generator)
+
+    print(f"STEPS PER EPOCH:{steps_per_epoch}")
 
     train_loss = 0.0
     start_time = time.time()
@@ -84,9 +85,9 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
         labels = torch.as_tensor(batch_data["seg"], device=device)
         labels = fix_labels_shape(args, labels)
 
-        per_sample_norms = compute_per_sample_grad_norms_loop(model, inputs, labels, loss_func, device)
-        print("median norm:", per_sample_norms.median().item())
-        print("90th percentile:", torch.quantile(per_sample_norms, 0.9).item())
+#        per_sample_norms = compute_per_sample_grad_norms_loop(model, inputs, labels, loss_func, device)
+ #       print("median norm:", per_sample_norms.median().item())
+  #      print("90th percentile:", torch.quantile(per_sample_norms, 0.9).item())
 
         # forward + loss
         outputs = model(inputs)
@@ -109,8 +110,11 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
     optimizer.param_groups[0]['lr'] = updated_lr
     print(f"Learning Rate Updated! New Value: {np.round(updated_lr, 10)}", flush=True)
 
-    # 4) Log epoch summary
+
     avg_loss = train_loss / steps_per_epoch
+
+    print(f'TRAIN LOSS {avg_loss}')
+    # 4) Log epoch summary
     elapsed = int(time.time() - start_time)
     print("-" * 100)
     print(
