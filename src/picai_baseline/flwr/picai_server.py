@@ -139,10 +139,10 @@ def server_fn(context: Context) -> ServerAppComponents:
         strategy.evaluate_metrics_aggregation_fn = weighted_average
 
     if run_configuration.resume_training:
+        print("RESUMING TRAINING")
         init_parameters = load_model_checkpoint(neural_network_for_run(args=run_configuration))
         strategy.initial_parameters = init_parameters
 
-    # Configure the server for 5 rounds of training
     config = ServerConfig(num_rounds=run_configuration.num_rounds)
 
     return ServerAppComponents(strategy=strategy, config=config)

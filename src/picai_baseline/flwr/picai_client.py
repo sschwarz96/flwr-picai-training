@@ -1,4 +1,5 @@
 import warnings
+
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 import types
@@ -28,6 +29,7 @@ import gc
 from pathlib import Path
 
 import opacus.grad_sample.utils
+
 print(opacus.grad_sample.utils.__file__)
 
 
@@ -68,7 +70,7 @@ class PicaiFlowerClient(NumPyClient):
         print(f"[Client {self.partition_id}] ▷ Before this round, cumulative ε = {eps_before:.4f}")
         set_parameters(self.net, parameters)
         _, all_norms = train(self.net, self.optimizer, self.loss_func, self.trainloader, self.args, self.device,
-              config["local_epochs"])
+                             config["local_epochs"])
 
         # store current norms
         if all_norms is not None and all_norms.numel() > 0:
@@ -138,12 +140,28 @@ def client_fn(context: Context) -> Client:
     # Load model
     net = neural_network_for_run(args=run_configuration, device=device)
 
+    def freeze_encoder_blocks(unet, freeze_depth: int):
+        block = unet.model  # top-level nn.Sequential(down, SkipConnection, up)
+        for _ in range(freeze_depth):
+            # freeze the down-sampling convolution
+            down_module = block[0]
+            for p in down_module.parameters():
+                p.requires_grad = False
+            # descend into the next block
+            skip = block[1]
+            block = skip.submodule  # this is the next nn.Sequential(down, SkipConnection, up)
+
+    # Example: freeze the first two down-sampling blocks
+    freeze_encoder_blocks(net, freeze_depth=2)
+
     # loss function + optimizer
     loss_func = FocalLoss(
         alpha=class_weights[-1],
         gamma=run_configuration.focal_loss_gamma,
         reduction='mean').to(device)
-    optimizer = torch.optim.Adam(params=net.parameters(), lr=run_configuration.base_lr, amsgrad=True, weight_decay=1e-4)
+    trainable = filter(lambda p: p.requires_grad, net.parameters())
+
+    optimizer = torch.optim.Adam(params=trainable, lr=run_configuration.base_lr, amsgrad=True, weight_decay=1e-4)
 
     current_epsilon = run_configuration.epsilon
     if dp_state_manager.exists(partition_id):
@@ -152,7 +170,8 @@ def client_fn(context: Context) -> Client:
         print(f"[Client {partition_id}] ✅ Accountant fully restored with {len(restored)} steps")
         current_epsilon = current_epsilon - privacy_engine.accountant.get_epsilon(delta=run_configuration.delta)
 
-    adaptive_clip = dp_state_manager.get_adaptive_clip_value(partition_id, factor=1.0)
+    #adaptive_clip = dp_state_manager.get_adaptive_clip_value(partition_id, factor=1.0)
+    adaptive_clip = None
     if adaptive_clip is not None:
         run_configuration.max_grad_norm = adaptive_clip  # override before make_private_with_epsilon
     else:
@@ -178,7 +197,8 @@ def client_fn(context: Context) -> Client:
     assert isinstance(bs, UniformWithReplacementSampler), f"Sampler is {type(bs)}"
 
     # 3) Accountant is RDPAccountant
-    assert isinstance(privacy_engine.accountant, RDPAccountant), f"Privacy engine accountant is {type(privacy_engine.accountant)}"
+    assert isinstance(privacy_engine.accountant,
+                      RDPAccountant), f"Privacy engine accountant is {type(privacy_engine.accountant)}"
     print("✅ DPOptimizer, Poisson sampler, and RDP accountant are in place.")
 
     private_train_loader = wrap_data_loader(
