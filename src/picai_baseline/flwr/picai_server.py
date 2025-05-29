@@ -129,7 +129,7 @@ def server_fn(context: Context) -> ServerAppComponents:
         min_available_clients=run_configuration.num_clients,  # Wait until all 10 clients are available
         on_fit_config_fn=fit_config,  # Pass the `fit_config` function
         on_evaluate_config_fn=evaluate_config,
-        fit_metrics_aggregation_fn=average_privacy,
+        fit_metrics_aggregation_fn=weighted_average,
         evaluate_metrics_aggregation_fn=weighted_average,
     )
     if run_configuration.central_evaluation:
