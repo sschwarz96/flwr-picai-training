@@ -48,7 +48,7 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
         # move to device
         inputs = torch.as_tensor(batch_data["data"], device=device)
         labels = torch.as_tensor(batch_data["seg"], device=device)
-        labels = fix_labels_shape(args, labels)
+        labels = fix_labels_shape(labels)
 
         # forward + loss
         outputs = model(inputs)
@@ -119,7 +119,7 @@ def validate_model(model, optimizer, loss_func, valid_gen, args, device):
             valid_labels = valid_data['seg']
 
         # bugfix for shape of targets
-        valid_labels_device = fix_labels_shape(args, valid_labels_device)
+        valid_labels_device = fix_labels_shape(valid_labels_device)
 
         # Calculate validation loss
         outputs = model(valid_images)

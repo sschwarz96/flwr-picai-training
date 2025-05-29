@@ -84,7 +84,7 @@ class CustomFedAvg(FedAvg):
             self, server_round: int, parameters: Parameters
     ) -> Optional[tuple[float, dict[str, Scalar]]]:
 
-        if server_round == 0 and not run_configuration.resume_training:
+        if server_round == 0:
             return None
         loss, metrics = super().evaluate(server_round=server_round, parameters=parameters)
         self._update_best_ranking(server_round, metrics["ranking"])
