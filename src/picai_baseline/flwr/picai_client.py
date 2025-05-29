@@ -1,6 +1,5 @@
 import gc
 
-
 import torch
 import torch.cuda
 from flwr.client import NumPyClient, Client
@@ -34,16 +33,15 @@ class PicaiFlowerCLient(NumPyClient):
         print(f"Partition id {self.partition_id}")
         set_parameters(self.net, parameters)
         print(f"Device type: {type(self.device)}, Value: {self.device}")
-        train(self.net, self.optimizer, self.loss_func, self.trainloader, self.args, self.device,
-              config["local_epochs"])
-        return get_parameters(self.net), self.trainloader.data_loader.get_data_length(), {}
+        train_loss = train(self.net, self.optimizer, self.loss_func, self.trainloader, self.args, self.device,
+                           config["local_epochs"])
+        return get_parameters(self.net), self.trainloader.data_loader.get_data_length(), {"train_loss": train_loss}
 
     def evaluate(self, parameters, config):
         set_parameters(self.net, parameters)
         tracking_metrics = test(self.net, self.optimizer, self.loss_func, self.valloader, self.args,
                                 self.device)
         loss = float(tracking_metrics["loss"])
-        tracking_metrics.popitem()
 
         return loss, self.valloader.get_data_length(), tracking_metrics
 
