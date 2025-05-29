@@ -39,7 +39,7 @@ class CustomFedAvg(FedAvg):
         # Store latest params
         self.params = None
 
-    def _store_results(self, tag: str, results_dict):
+    def _store_results(self, tag: str, results_dict, file_name: str):
         """Store results in dictionary, then save as JSON."""
         # Update results dict
         if tag in self.results:
@@ -51,8 +51,9 @@ class CustomFedAvg(FedAvg):
         # Note we overwrite the same file with each call to this function.
         # While this works, a more sophisticated approach is preferred
         # in situations where the contents to be saved are larger.
-        with open(f"{self.save_path}/results.json", "w", encoding="utf-8") as fp:
-            json.dump(self.results, fp)
+        with open(f"{self.save_path}/{file_name}", "w", encoding="utf-8") as fp:
+            json.dump(self.results[tag], fp)
+
 
     def _update_best_ranking(self, round, ranking, ap):
         """Determines if a new best global model has been found.
@@ -74,12 +75,13 @@ class CustomFedAvg(FedAvg):
             file_name = f"model_state_rank_{ranking}_round_{round}.pth"
             torch.save(model.state_dict(), self.save_path / file_name)
 
-    def store_results_and_log(self, server_round: int, tag: str, results_dict):
+    def store_results_and_log(self, server_round: int, tag: str, results_dict, file_name: str):
         """A helper method that stores results and logs them to W&B if enabled."""
         # Store results
         self._store_results(
             tag=tag,
             results_dict={"round": server_round, **results_dict},
+            file_name=file_name,
         )
 
     def evaluate(
@@ -95,6 +97,7 @@ class CustomFedAvg(FedAvg):
             server_round=server_round,
             tag="central_evaluate",
             results_dict={"central_evaluate_loss": loss, **metrics},
+            file_name="results.json"
         )
         return loss, metrics
 
@@ -112,6 +115,12 @@ class CustomFedAvg(FedAvg):
         )
         self.params = aggregated_parameters
 
+        self.store_results_and_log(
+            server_round=server_round,
+            tag="central_aggregate",
+            results_dict={"round": server_round, **aggregated_metrics},
+            file_name="fit_metrics.json")
+
         return aggregated_parameters, aggregated_metrics
 
     def aggregate_evaluate(self, server_round, results: list[tuple[ClientProxy, EvaluateRes]], failures):
@@ -124,6 +133,7 @@ class CustomFedAvg(FedAvg):
             server_round=server_round,
             tag="federated_evaluate",
             results_dict={"federated_evaluate_loss": loss, **metrics},
+            file_name="results.json"
         )
         return loss, metrics
 

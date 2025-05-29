@@ -69,7 +69,7 @@ class PicaiFlowerClient(NumPyClient):
         eps_before, _ = self.privacy_engine.accountant.get_privacy_spent(delta=self.args.delta)
         print(f"[Client {self.partition_id}] ▷ Before this round, cumulative ε = {eps_before:.4f}")
         set_parameters(self.net, parameters)
-        _, all_norms = train(self.net, self.optimizer, self.loss_func, self.trainloader, self.args, self.device,
+        train_loss, all_norms = train(self.net, self.optimizer, self.loss_func, self.trainloader, self.args, self.device,
                              config["local_epochs"])
 
         # store current norms
@@ -94,7 +94,8 @@ class PicaiFlowerClient(NumPyClient):
 
         # 4) Return updated weights, num examples, and ε as a metric
         #    You can also include alpha if you want:
-        metrics = {"epsilon": float(eps_after), "alpha": float(alpha)}
+        metrics = {"epsilon": float(eps_after), "alpha": float(alpha), 'train_loss': train_loss}
+
         return get_parameters(self.net), self.get_length_of_data(self.trainloader), metrics
 
     def evaluate(self, parameters, config):
@@ -157,8 +158,7 @@ def client_fn(context: Context) -> Client:
     # loss function + optimizer
     loss_func = FocalLoss(
         alpha=class_weights[-1],
-        gamma=run_configuration.focal_loss_gamma,
-        reduction='mean').to(device)
+        gamma=run_configuration.focal_loss_gamma).to(device)
     trainable = filter(lambda p: p.requires_grad, net.parameters())
 
     optimizer = torch.optim.Adam(params=trainable, lr=run_configuration.base_lr, amsgrad=True, weight_decay=1e-4)
