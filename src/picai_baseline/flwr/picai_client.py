@@ -105,7 +105,7 @@ def client_fn(context: Context) -> Client:
                         p.requires_grad = False
 
 
-    freeze_encoder_and_bottleneck(net)
+    #freeze_encoder_and_bottleneck(net)
 
     for name, param in net.named_parameters():
         print(name, param.requires_grad, tuple(param.shape))
