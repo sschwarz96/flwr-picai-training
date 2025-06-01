@@ -34,8 +34,8 @@ from report_guided_annotation import extract_lesion_candidates
 from scipy.ndimage import gaussian_filter
 
 WEIGHTS_FILE = Path(
-    "/home/zimon/flwr-picai-training/outputs/final_results/no_DP_DA_enabled/13-02-43/model_state_rank_0.45067658670752464_round_28.pth")
-PATIENT_ID = "10088"
+    "/home/zimon/flwr-picai-training/outputs/2025-05-27/14-42-43/model_state_rank_0.3537275173215296_round_19.pth")
+PATIENT_ID = "10012"
 PATIENT = Path(f"/home/zimon/flwr-picai-training/input/images/{PATIENT_ID}")
 
 

@@ -36,7 +36,7 @@ def optimize_model(model, optimizer, loss_func, train_gen, args, device, epoch):
     train_loss = 0.0
     start_time = time.time()
     steps_done = 0
-    total_steps = ceil(train_gen.data_loader.get_data_length() / args.batch_size)
+    total_steps = (ceil(train_gen.data_loader.get_data_length() / args.batch_size)) * 2
 
     # 2) Take exactly steps_per_epoch batches from train_gen
     for batch_data in train_gen:

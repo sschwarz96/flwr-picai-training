@@ -12,7 +12,7 @@ class RunConfig:
         self.image_shape = [16, 128, 128]  # (z, y, x)
         self.num_channels = 3
         self.num_classes = 2
-        self.base_lr = 0.0002 # 0.002
+        self.base_lr = 0.0004 # 0.002
         self.focal_loss_gamma = 1.0 # 1.0
         self.enable_da = False  # Data Augmentation
         self.random_seed = 42  # For reproducibility
@@ -21,7 +21,7 @@ class RunConfig:
         self.model_type = "unet"
         self.model_strides = [(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]
         self.model_features = [32, 64, 128, 256, 512, 1024]
-        self.batch_size = 10
+        self.batch_size = 22
         self.use_def_model_hp = 1
 
         # Federated Learning Config
