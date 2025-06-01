@@ -153,7 +153,7 @@ def client_fn(context: Context) -> Client:
             block = skip.submodule  # this is the next nn.Sequential(down, SkipConnection, up)
 
     # Example: freeze the first two down-sampling blocks
-    #freeze_encoder_blocks(net, freeze_depth=2)
+    freeze_encoder_blocks(net, freeze_depth=2)
 
     # loss function + optimizer
     loss_func = FocalLoss(
@@ -161,7 +161,7 @@ def client_fn(context: Context) -> Client:
         gamma=run_configuration.focal_loss_gamma).to(device)
     trainable = filter(lambda p: p.requires_grad, net.parameters())
 
-    optimizer = torch.optim.Adam(params=net.parameters(), lr=run_configuration.base_lr, amsgrad=True, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(params=trainable, lr=run_configuration.base_lr, amsgrad=True, weight_decay=1e-4)
 
     current_epsilon = run_configuration.epsilon
     if dp_state_manager.exists(partition_id):

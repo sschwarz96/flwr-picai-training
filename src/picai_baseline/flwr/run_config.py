@@ -5,14 +5,14 @@ class RunConfig:
     def __init__(self):
         # Data I/O + Experimental Setup
         self.validate_n_epochs = 1
-        self.resume_training = 0
+        self.resume_training = 1
         self.overviews_dir = "/home/zimon/flwr-picai-training/workdir/results/UNet/overviews/Task2203_picai_baseline"
 
         # Training Hyperparameters
         self.image_shape = [16, 128, 128]  # (z, y, x)
         self.num_channels = 3
         self.num_classes = 2
-        self.base_lr = 0.0002  # 0.002
+        self.base_lr = 0.0001  # 0.002
         self.focal_loss_gamma = 1.0  # 1.0
         self.enable_da = True  # Data Augmentation
         self.random_seed = 42  # For reproducibility
@@ -21,14 +21,14 @@ class RunConfig:
         self.model_type = "unet"
         self.model_strides = [(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]
         self.model_features = [32, 64, 128, 256, 512, 1024]
-        self.virtual_batch_size = 10
-        self.physical_batch_size = 10
+        self.virtual_batch_size = 5
+        self.physical_batch_size = 5
 
         # Federated Learning Config
         self.num_train_epochs = 2
         self.central_evaluation = True
         self.num_clients = 3
-        self.num_rounds = 40
+        self.num_rounds = 20
         self.num_gpus = 1.0
         self.num_threads_clients = 3
         self.num_threads_augmenting = 2
@@ -38,9 +38,9 @@ class RunConfig:
         self.evaluation_fold = 3 if self.central_evaluation else None
 
         # Privacy related
-        self.epsilon = 3
+        self.epsilon = 30
         self.delta = 1e-5
-        self.max_grad_norm = 1.5
+        self.max_grad_norm = 0.7
 
     def to_dict(self):
         """Convert the class attributes to a dictionary for JSON serialization."""
