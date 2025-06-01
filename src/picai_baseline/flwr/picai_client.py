@@ -1,5 +1,7 @@
 import warnings
 
+from torch import nn
+
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 import types
@@ -141,19 +143,36 @@ def client_fn(context: Context) -> Client:
     # Load model
     net = neural_network_for_run(args=run_configuration, device=device)
 
-    def freeze_encoder_blocks(unet, freeze_depth: int):
-        block = unet.model  # top-level nn.Sequential(down, SkipConnection, up)
-        for _ in range(freeze_depth):
-            # freeze the down-sampling convolution
-            down_module = block[0]
-            for p in down_module.parameters():
-                p.requires_grad = False
-            # descend into the next block
-            skip = block[1]
-            block = skip.submodule  # this is the next nn.Sequential(down, SkipConnection, up)
+    def freeze_encoder_and_bottleneck(monai_unet: nn.Module):
+        """
+        Freeze every submodule in monai_unet.model whose `conv` is a bare Conv3d and either:
+          • has stride > 1  (down-sampling / encoder),  OR
+          • has out_channels == 1024  (the bottleneck layer in this UNet).
+        All other submodules (the up-sampling / decoder side) remain trainable.
+        """
+        for module in monai_unet.model.modules():
+            # 1) Does this block have an attribute `conv` that is a bare Conv3d?
+            if hasattr(module, "conv") and isinstance(module.conv, nn.Conv3d):
+                conv3d = module.conv
+                # 2a) If any dimension of conv3d.stride > 1, it's an encoder/down-sampler
+                is_down = any(s > 1 for s in conv3d.stride)
+                # 2b) If conv3d.out_channels == 1024, assume it's the bottleneck
+                is_bottleneck = (conv3d.out_channels == 1024)
+                if is_down or is_bottleneck:
+                    for p in module.parameters():
+                        p.requires_grad = False
 
-    # Example: freeze the first two down-sampling blocks
-    freeze_encoder_blocks(net, freeze_depth=2)
+
+    #freeze_encoder_and_bottleneck(net)
+
+    for name, param in net.named_parameters():
+        print(name, param.requires_grad, tuple(param.shape))
+
+    # Count how many parameters remain trainable:
+    trainable = sum(p.numel() for p in net.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in net.parameters())
+    print(f"Total params:     {total:,}")
+    print(f"Trainable params: {trainable:,}")
 
     # loss function + optimizer
     loss_func = FocalLoss(
