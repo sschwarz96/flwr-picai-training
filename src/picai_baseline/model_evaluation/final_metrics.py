@@ -188,8 +188,7 @@ def evaluate_on_generator(model, test_gen, loss_func, args, device):
 
 
 def main():
-    weights = find_highest_rank_pth_paths(Path('/home/zimon/flwr-picai-training/outputs/final_results/DA'))
-    folders = os.listdir('/home/zimon/flwr-picai-training/outputs/final_results/DA')
+    weights = [Path('/home/zimon/flwr-picai-training/outputs/2025-06-01/12-48-58/model_state_rank_0.5618164536184163_round_1.pth')]
 
     with open(
             '/home/zimon/flwr-picai-training/workdir/results/UNet/overviews/Task2203_picai_baseline/PI-CAI_val-fold-4.json',
@@ -204,9 +203,8 @@ def main():
 
     loss_func = FocalLoss(alpha=class_weights[-1], gamma=run_cfg.focal_loss_gamma).to(device)
 
-    for weight, folder in zip(weights, folders):
+    for weight in weights:
 
-        assert(Path(weight).parent.parent.name == folder)
 
         print(f"Loading weights from {weight}")
         ckpt = torch.load(weight, map_location=device)
@@ -219,7 +217,7 @@ def main():
         print("\nFinal test‑fold metrics (metric units):")
         print(json.dumps(metrics, indent=2))
 
-        output_file = Path('/home/zimon/flwr-picai-training/outputs/final_results/DA') / folder / 'inference_results.json'
+        output_file = Path('/home/zimon/flwr-picai-training/outputs/final_results/DA') / "test_stuff" / 'inference_results.json'
 
         if output_file is not None:
             with open(output_file, "w") as fp:

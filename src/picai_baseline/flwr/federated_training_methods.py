@@ -57,6 +57,7 @@ def load_model_checkpoint(net: nn.Module) -> Parameters:
     outputs = Path("./outputs")
     list_of_files = [fname for fname in outputs.rglob("*.pth")]
     latest_round_file = max(list_of_files, key=os.path.getctime)
+    latest_round_file = '/home/zimon/flwr-picai-training/outputs/2025-06-01/12-54-33/model_state_rank_0.4183537815129987_round_1.pth'
     log(INFO, f"Loading pre-trained model from: {latest_round_file}")
     state_dict = torch.load(latest_round_file)
     net.load_state_dict(state_dict)

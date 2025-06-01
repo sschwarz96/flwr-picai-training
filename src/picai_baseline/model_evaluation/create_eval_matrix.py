@@ -85,6 +85,7 @@ def main():
     j_scores = tpr - fpr
     ix = np.argmax(j_scores)
     best_thr_roc = thr[ix]
+    #best_thr_roc = 0.08
     print(f"Youden J max at thr={best_thr_roc:.3f}")
     y_pred = (y_prob >= best_thr_roc).astype(int)
     cm = confusion_matrix(y_true, y_pred)

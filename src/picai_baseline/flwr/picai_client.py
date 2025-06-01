@@ -4,6 +4,7 @@ import torch
 import torch.cuda
 from flwr.client import NumPyClient, Client
 from flwr.common import Context
+from torch import nn
 
 from src.picai_baseline.flwr.federated_training_methods import load_datasets, set_parameters, \
     get_parameters, train, test
@@ -12,6 +13,7 @@ from src.picai_baseline.unet.training_setup.augmentations.nnUNet_DA import apply
 from src.picai_baseline.unet.training_setup.compute_spec import compute_spec_for_run
 from src.picai_baseline.unet.training_setup.loss_functions.focal import FocalLoss
 from src.picai_baseline.unet.training_setup.neural_network_selector import neural_network_for_run
+from torchinfo import summary  # optional, but very helpful
 
 
 class PicaiFlowerCLient(NumPyClient):
@@ -83,6 +85,36 @@ def client_fn(context: Context) -> Client:
     # Load model
     net = neural_network_for_run(args=args, device=device)
 
+    def freeze_encoder_and_bottleneck(monai_unet: nn.Module):
+        """
+        Freeze every submodule in monai_unet.model whose `conv` is a bare Conv3d and either:
+          • has stride > 1  (down-sampling / encoder),  OR
+          • has out_channels == 1024  (the bottleneck layer in this UNet).
+        All other submodules (the up-sampling / decoder side) remain trainable.
+        """
+        for module in monai_unet.model.modules():
+            # 1) Does this block have an attribute `conv` that is a bare Conv3d?
+            if hasattr(module, "conv") and isinstance(module.conv, nn.Conv3d):
+                conv3d = module.conv
+                # 2a) If any dimension of conv3d.stride > 1, it's an encoder/down-sampler
+                is_down = any(s > 1 for s in conv3d.stride)
+                # 2b) If conv3d.out_channels == 1024, assume it's the bottleneck
+                is_bottleneck = (conv3d.out_channels == 1024)
+                if is_down or is_bottleneck:
+                    for p in module.parameters():
+                        p.requires_grad = False
+
+
+    freeze_encoder_and_bottleneck(net)
+
+    for name, param in net.named_parameters():
+        print(name, param.requires_grad, tuple(param.shape))
+
+    # Count how many parameters remain trainable:
+    trainable = sum(p.numel() for p in net.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in net.parameters())
+    print(f"Total params:     {total:,}")
+    print(f"Trainable params: {trainable:,}")
     # loss function + optimizer
     loss_func = FocalLoss(alpha=class_weights[-1], gamma=args.focal_loss_gamma).to(device)
     optimizer = torch.optim.Adam(params=net.parameters(), lr=args.base_lr, amsgrad=True, weight_decay=1e-4)
