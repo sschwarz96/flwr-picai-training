@@ -14,21 +14,21 @@ class RunConfig:
         self.num_classes = 2
         self.base_lr = 0.0002  # 0.002
         self.focal_loss_gamma = 1.0  # 1.0
-        self.enable_da = True  # Data Augmentation
+        self.enable_da = False  # Data Augmentaon
         self.random_seed = 42  # For reproducibility
 
         # Neural Network-Specific Hyperparameters
         self.model_type = "unet"
         self.model_strides = [(2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (2, 2, 2)]
         self.model_features = [16, 32, 64, 128, 256, 512]
-        self.virtual_batch_size = 5
-        self.physical_batch_size = 5
+        self.virtual_batch_size = 30
+        self.physical_batch_size = 30
 
         # Federated Learning Config
         self.num_train_epochs = 2
         self.central_evaluation = True
         self.num_clients = 3
-        self.num_rounds = 20
+        self.num_rounds = 40
         self.num_gpus = 1.0
         self.num_threads_clients = 3
         self.num_threads_augmenting = 2
@@ -38,7 +38,7 @@ class RunConfig:
         self.evaluation_fold = 3 if self.central_evaluation else None
 
         # Privacy related
-        self.epsilon = 30
+        self.epsilon = 1000000
         self.delta = 1e-5
         self.max_grad_norm = 1.5
 

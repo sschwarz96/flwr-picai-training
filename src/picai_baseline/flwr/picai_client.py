@@ -71,8 +71,9 @@ class PicaiFlowerClient(NumPyClient):
         eps_before, _ = self.privacy_engine.accountant.get_privacy_spent(delta=self.args.delta)
         print(f"[Client {self.partition_id}] ▷ Before this round, cumulative ε = {eps_before:.4f}")
         set_parameters(self.net, parameters)
-        train_loss, all_norms = train(self.net, self.optimizer, self.loss_func, self.trainloader, self.args, self.device,
-                             config["local_epochs"])
+        train_loss, all_norms = train(self.net, self.optimizer, self.loss_func, self.trainloader, self.args,
+                                      self.device,
+                                      config["local_epochs"])
 
         # store current norms
         if all_norms is not None and all_norms.numel() > 0:
@@ -143,25 +144,20 @@ def client_fn(context: Context) -> Client:
     # Load model
     net = neural_network_for_run(args=run_configuration, device=device)
 
-    def freeze_encoder_and_bottleneck(monai_unet: nn.Module):
+    def freeze_encoder_and_bottleneck(monai_unet):
         """
-        Freeze every submodule in monai_unet.model whose `conv` is a bare Conv3d and either:
-          • has stride > 1  (down-sampling / encoder),  OR
-          • has out_channels == 1024  (the bottleneck layer in this UNet).
-        All other submodules (the up-sampling / decoder side) remain trainable.
+        Freeze every Conv3d on the encoder side (down‐sampling or channel‐expanding).
+        Leave only decoder convs and the final head trainable.
         """
         for module in monai_unet.model.modules():
-            # 1) Does this block have an attribute `conv` that is a bare Conv3d?
-            if hasattr(module, "conv") and isinstance(module.conv, nn.Conv3d):
-                conv3d = module.conv
-                # 2a) If any dimension of conv3d.stride > 1, it's an encoder/down-sampler
-                is_down = any(s > 1 for s in conv3d.stride)
-                # 2b) If conv3d.out_channels == 1024, assume it's the bottleneck
-                is_bottleneck = (conv3d.out_channels == 1024)
-                if is_down or is_bottleneck:
+            if isinstance(module, nn.Conv3d):
+                oc = module.out_channels
+                ic = module.in_channels
+                stride = module.stride  # e.g. (2,2,2) or (1,2,2) in encoder; (1,1,1) in decoder.
+                # If it downsamples OR expands channels, freeze it:
+                if any(s > 1 for s in stride) or (ic < oc):
                     for p in module.parameters():
                         p.requires_grad = False
-
 
     #freeze_encoder_and_bottleneck(net)
 
@@ -177,7 +173,7 @@ def client_fn(context: Context) -> Client:
     # loss function + optimizer
     loss_func = FocalLoss(
         alpha=class_weights[-1],
-        gamma=run_configuration.focal_loss_gamma).to(device)
+        gamma=run_configuration.focal_loss_gamma, reduction="mean").to(device)
     trainable = filter(lambda p: p.requires_grad, net.parameters())
 
     optimizer = torch.optim.Adam(params=trainable, lr=run_configuration.base_lr, amsgrad=True, weight_decay=1e-4)
@@ -189,7 +185,7 @@ def client_fn(context: Context) -> Client:
         print(f"[Client {partition_id}] ✅ Accountant fully restored with {len(restored)} steps")
         current_epsilon = current_epsilon - privacy_engine.accountant.get_epsilon(delta=run_configuration.delta)
 
-    #adaptive_clip = dp_state_manager.get_adaptive_clip_value(partition_id, factor=1.0)
+    adaptive_clip = dp_state_manager.get_adaptive_clip_value(partition_id, factor=1.0)
     adaptive_clip = None
     if adaptive_clip is not None:
         run_configuration.max_grad_norm = adaptive_clip  # override before make_private_with_epsilon
